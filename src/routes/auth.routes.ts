@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken'; // ✅ added SignOptions
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config/index.js';
 import { userModel, AgentDocument, UserDocument } from '../models/User.js';
@@ -83,11 +83,14 @@ router.post('/register', async (req: Request, res: Response) => {
 
     userModel.create(newUser);
 
-    // Create JWT token
+    // ✅ Create JWT token properly for TypeScript
+    const secret = config.jwt.secret as string;
+    const options: SignOptions = { expiresIn: config.jwt.expiresIn as unknown as SignOptions['expiresIn'] };
+
     const token = jwt.sign(
       { userId: newUser.id, role: newUser.role },
-      config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      secret,
+      options
     );
 
     // Create session
@@ -157,11 +160,14 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Create JWT token
+    // ✅ Create JWT token properly
+    const secret = config.jwt.secret as string;
+    const options: SignOptions = { expiresIn: config.jwt.expiresIn as unknown as SignOptions['expiresIn'] };
+
     const token = jwt.sign(
       { userId: user.id, role: user.role },
-      config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      secret,
+      options
     );
 
     const now = new Date().toISOString();
@@ -295,5 +301,3 @@ router.patch('/password-reset', async (req: Request, res: Response) => {
 });
 
 export default router;
-
-

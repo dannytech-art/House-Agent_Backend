@@ -1,0 +1,34 @@
+[
+  {
+    "id": "quest-1",
+    "userId": "agent-demo",
+    "title": "Upload Your First Listing",
+    "description": "Create and upload your first property listing",
+    "type": "daily",
+    "progress": 1,
+    "target": 1,
+    "reward": {
+      "xp": 50,
+      "credits": 5
+    },
+    "completed": true,
+    "expiresAt": "2025-12-31T05:29:16.480Z",
+    "createdAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "quest-2",
+    "userId": "agent-demo",
+    "title": "Get 3 Interests",
+    "description": "Receive 3 buyer interests on your listings",
+    "type": "weekly",
+    "progress": 2,
+    "target": 3,
+    "reward": {
+      "xp": 100,
+      "credits": 10
+    },
+    "completed": false,
+    "expiresAt": "2026-01-06T05:29:16.480Z",
+    "createdAt": "2025-12-30T05:29:15.411Z"
+  }
+]

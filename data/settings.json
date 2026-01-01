@@ -1,0 +1,30 @@
+[
+  {
+    "id": "s1",
+    "key": "maintenance_mode",
+    "value": false,
+    "description": "Enable maintenance mode",
+    "updatedAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "s2",
+    "key": "max_listings_per_agent",
+    "value": 50,
+    "description": "Maximum listings per agent",
+    "updatedAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "s3",
+    "key": "interest_unlock_cost",
+    "value": 5,
+    "description": "Credits to unlock an interest",
+    "updatedAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "s4",
+    "key": "featured_listing_cost",
+    "value": 10,
+    "description": "Credits to feature a listing",
+    "updatedAt": "2025-12-30T05:29:15.411Z"
+  }
+]

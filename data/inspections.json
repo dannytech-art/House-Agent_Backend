@@ -1,0 +1,32 @@
+[
+  {
+    "id": "661386cf-54cf-4aca-a332-ed58a8bdf830",
+    "interestId": "3bd96047-5363-48f9-a15d-ee19562d9edd",
+    "propertyId": "165a976e-d6b0-4cb3-98a0-f266154be3c9",
+    "seekerId": "1620a368-adea-4cda-82ca-c0159a726924",
+    "seekerName": "Ethan Liam",
+    "seekerPhone": "08103684575",
+    "agentId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "scheduledDate": "2026-01-20",
+    "scheduledTime": "12:30",
+    "status": "confirmed",
+    "notes": "",
+    "createdAt": "2025-12-31T23:14:02.375Z",
+    "updatedAt": "2025-12-31T23:15:49.754Z"
+  },
+  {
+    "id": "67f2c375-6b3c-4b8e-85fe-5916d660235d",
+    "interestId": "f96212c7-6ec2-48ed-a0c1-4ab97b7d9442",
+    "propertyId": "a5048a23-8949-4c78-a7f8-e8411fb4359f",
+    "seekerId": "1620a368-adea-4cda-82ca-c0159a726924",
+    "seekerName": "Ethan Liam",
+    "seekerPhone": "08103684575",
+    "agentId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "scheduledDate": "2026-01-20",
+    "scheduledTime": "10:00",
+    "status": "pending",
+    "notes": "",
+    "createdAt": "2026-01-01T00:27:57.808Z",
+    "updatedAt": "2026-01-01T00:27:57.808Z"
+  }
+]

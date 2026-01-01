@@ -1,0 +1,35 @@
+[
+  {
+    "id": "bundle-1",
+    "credits": 10,
+    "price": 1000,
+    "bonus": 0,
+    "active": true,
+    "createdAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "bundle-2",
+    "credits": 25,
+    "price": 2000,
+    "bonus": 5,
+    "popular": true,
+    "active": true,
+    "createdAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "bundle-3",
+    "credits": 50,
+    "price": 3500,
+    "bonus": 10,
+    "active": true,
+    "createdAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "bundle-4",
+    "credits": 100,
+    "price": 6000,
+    "bonus": 25,
+    "active": true,
+    "createdAt": "2025-12-30T05:29:15.411Z"
+  }
+]

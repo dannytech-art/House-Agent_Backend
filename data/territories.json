@@ -1,0 +1,26 @@
+[
+  {
+    "id": "territory-1",
+    "agentId": "agent-demo",
+    "area": "Lekki Phase 1",
+    "state": "Lagos",
+    "dominance": 35,
+    "activeListings": 5,
+    "monthlyDeals": 2,
+    "rank": 3,
+    "dailyIncome": 50,
+    "claimedAt": "2025-12-30T05:29:15.411Z"
+  },
+  {
+    "id": "territory-2",
+    "agentId": "agent-demo",
+    "area": "Victoria Island",
+    "state": "Lagos",
+    "dominance": 20,
+    "activeListings": 3,
+    "monthlyDeals": 1,
+    "rank": 7,
+    "dailyIncome": 35,
+    "claimedAt": "2025-12-30T05:29:15.411Z"
+  }
+]

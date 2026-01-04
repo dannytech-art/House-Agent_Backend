@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { chatSessionModel, chatMessageModel } from '../models/Chat.js';
 import { userModel } from '../models/User.js';
 import { propertyModel } from '../models/Property.js';
+import { interestModel } from '../models/Interest.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { notifyNewMessage } from '../services/notification.service.js';
 
@@ -12,8 +13,10 @@ const router = Router();
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const sessions = chatSessionModel.findByParticipant(req.userId!);
+    const currentUser = userModel.findById(req.userId!);
+    const isAgent = currentUser?.role === 'agent';
 
-    // Enrich sessions with last message and participant info
+    // Enrich sessions with last message, participant info, and unlock status
     const enrichedSessions = sessions.map(session => {
       const messages = chatMessageModel.findBySession(session.id);
       const lastMessage = messages[messages.length - 1];
@@ -22,14 +25,36 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       const otherParticipantId = session.participantIds.find(id => id !== req.userId);
       const otherParticipant = otherParticipantId ? userModel.findById(otherParticipantId) : null;
 
+      // Check if interest is unlocked (for agents)
+      let isUnlocked = true;
+      let interest = null;
+      if (session.interestId) {
+        interest = interestModel.findById(session.interestId);
+        if (interest && isAgent) {
+          isUnlocked = interest.unlocked;
+        }
+      }
+
+      // Get property info
+      const property = session.propertyId ? propertyModel.findById(session.propertyId) : null;
+
       return {
         ...session,
         lastMessage,
         unreadCount,
+        isUnlocked,
+        canSendMessage: isAgent ? isUnlocked : true, // Seekers can always send
+        property: property ? {
+          id: property.id,
+          title: property.title,
+          location: property.location,
+          images: property.images,
+        } : null,
         otherParticipant: otherParticipant ? {
           id: otherParticipant.id,
           name: otherParticipant.name,
           avatar: otherParticipant.avatar,
+          role: otherParticipant.role,
         } : null,
       };
     });
@@ -123,6 +148,28 @@ router.post('/:sessionId/messages', authenticate, async (req: AuthRequest, res: 
         success: false,
         error: 'User not found',
       });
+    }
+
+    // Check if agent needs to unlock the interest first
+    if (sender.role === 'agent' && session.interestId) {
+      const interest = interestModel.findById(session.interestId);
+      if (interest && !interest.unlocked) {
+        // Get agent's credit balance
+        const agent = sender as any;
+        const credits = agent.credits || 0;
+        
+        return res.status(403).json({
+          success: false,
+          error: 'You need to unlock this seeker profile to send messages',
+          data: {
+            requiresUnlock: true,
+            interestId: session.interestId,
+            unlockCost: 5,
+            currentCredits: credits,
+            hasEnoughCredits: credits >= 5,
+          },
+        });
+      }
     }
 
     const now = new Date().toISOString();

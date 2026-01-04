@@ -1,8 +1,10 @@
 import express, { Request, Response } from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import { config } from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { initializeSocketServer } from './services/socket.service.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -22,8 +24,13 @@ import ciuRoutes from './routes/ciu.routes.js';
 import propertyRequestRoutes from './routes/property-request.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import inspectionRoutes from './routes/inspection.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 const app = express();
+const httpServer = createServer(app);
+
+// Initialize Socket.IO
+const io = initializeSocketServer(httpServer);
 
 // Universal CORS - Allow all origins
 app.use(cors({
@@ -46,6 +53,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: config.env,
+    socketIO: 'enabled',
   });
 });
 
@@ -67,6 +75,7 @@ app.use('/api/ciu', ciuRoutes);
 app.use('/api/property-requests', propertyRequestRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/inspections', inspectionRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -81,12 +90,13 @@ app.use(errorHandler);
 
 // Start server
 const PORT = config.port;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 Vilanow API Server running on port ${PORT}`);
   console.log(`📍 Environment: ${config.env}`);
   console.log(`🌐 CORS: Universal (all origins allowed)`);
   console.log(`📝 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`🔌 Socket.IO: Enabled (ws://localhost:${PORT})`);
 });
 
+export { io };
 export default app;
-

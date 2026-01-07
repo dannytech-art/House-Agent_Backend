@@ -256,9 +256,17 @@ router.post('/verify-payment', async (req: Request, res: Response) => {
       });
     }
 
-    // Find local transaction by metadata.reference or id
+    // Find local transaction by multiple possible identifiers (our reference, transaction id, or Paystack reference)
     const transaction = transactionModel.findOne(tx => {
-      return (tx.metadata && tx.metadata.reference === reference) || tx.id === reference || (tx as any).reference === reference;
+      const meta = tx.metadata || {};
+      return (
+        meta.reference === reference ||
+        meta.transactionId === reference ||
+        meta.paystackReference === reference ||
+        tx.id === reference ||
+        (tx as any).reference === reference ||
+        (tx as any).paystackReference === reference
+      );
     });
 
     if (!transaction) {
@@ -273,7 +281,7 @@ router.post('/verify-payment', async (req: Request, res: Response) => {
       // Update transaction
       transactionModel.update(transaction.id, {
         status: 'completed',
-        metadata: { ...(transaction.metadata || {}), paystackId: paystackResp.data?.id, paidAt: paystackResp.data?.paid_at, applied: true },
+        metadata: { ...(transaction.metadata || {}), paystackId: paystackResp.data?.id, paystackReference: paystackResp.data?.reference, paidAt: paystackResp.data?.paid_at, applied: true },
       });
 
       // Update user credits
@@ -313,6 +321,43 @@ router.post('/verify-payment', async (req: Request, res: Response) => {
     }
 
     return res.status(500).json({ success: false, error: 'Failed to verify payment' });
+  }
+});
+
+// Quick status check for frontend: GET /api/credits/verify/:reference
+router.get('/verify/:reference', async (req: Request, res: Response) => {
+  try {
+    const { reference } = req.params;
+
+    if (!reference) {
+      return res.status(400).json({ success: false, error: 'Reference is required' });
+    }
+
+    const transaction = transactionModel.findOne(tx => {
+      const meta = tx.metadata || {};
+      return (
+        meta.reference === reference ||
+        meta.transactionId === reference ||
+        meta.paystackReference === reference ||
+        tx.id === reference ||
+        (tx as any).reference === reference ||
+        (tx as any).paystackReference === reference
+      );
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ success: false, error: 'Transaction not found' });
+    }
+
+    return res.json({
+      success: true,
+      status: transaction.status,
+      credits: transaction.credits,
+      message: `Transaction is ${transaction.status}`,
+    });
+  } catch (error) {
+    console.error('Verify status error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

@@ -266,7 +266,9 @@ router.post('/verify-inline', async (req: Request, res: Response) => {
         return (
         meta.reference === reference ||
         meta.transactionId === reference ||
-        tx.id === reference
+        meta.paystackReference === reference ||
+        tx.id === reference ||
+        (tx as any).paystackReference === reference
         );
       });
 
@@ -368,6 +370,7 @@ router.post('/verify-inline', async (req: Request, res: Response) => {
         metadata: {
           ...transaction.metadata,
           paystackId: paymentData.id,
+          paystackReference: paymentData.reference,
           paidAt: paymentData.paid_at || now,
           channel: paymentData.channel,
           applied: true,
@@ -457,7 +460,9 @@ router.get('/callback', async (req: Request, res: Response) => {
       return (
         meta.reference === paymentData.reference ||
         meta.transactionId === paystackMeta.transactionId ||
-        tx.id === paystackMeta.transactionId
+        meta.paystackReference === paymentData.reference ||
+        tx.id === paystackMeta.transactionId ||
+        (tx as any).paystackReference === paymentData.reference
       );
     });
 
@@ -513,6 +518,7 @@ router.get('/callback', async (req: Request, res: Response) => {
         metadata: {
           ...transaction.metadata,
           paystackId: paymentData.id,
+          paystackReference: paymentData.reference,
           paidAt: paymentData.paid_at,
           channel: paymentData.channel,
         },
@@ -577,7 +583,7 @@ router.get('/verify/:reference', authenticate, async (req: AuthRequest, res: Res
     let transaction = transactionModel.findOne(tx => {
       const meta = tx.metadata || {};
       return (
-        (meta.reference === reference || meta.transactionId === reference || tx.id === reference) &&
+        (meta.reference === reference || meta.transactionId === reference || meta.paystackReference === reference || tx.id === reference || (tx as any).paystackReference === reference) &&
         tx.userId === req.userId
       );
     });
@@ -820,6 +826,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
             metadata: {
               ...transaction.metadata,
               paystackId: data.id,
+              paystackReference: data.reference,
               paidAt: data.paid_at,
               channel: data.channel,
               applied: true,
@@ -992,6 +999,7 @@ router.post('/test-webhook', async (req: Request, res: Response) => {
       metadata: {
         ...transaction.metadata,
         paystackId: Math.floor(Math.random() * 10000000),
+        paystackReference: `TEST_${Math.random().toString(36).substring(2,8).toUpperCase()}`,
         paidAt: now,
         channel: 'card',
         applied: true,

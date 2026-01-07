@@ -60,8 +60,8 @@
     "message": "interested",
     "seriousnessScore": 5,
     "createdAt": "2026-01-01T00:27:57.720Z",
-    "unlocked": false,
-    "status": "viewing-scheduled",
-    "updatedAt": "2026-01-01T00:27:57.808Z"
+    "unlocked": true,
+    "status": "contacted",
+    "updatedAt": "2026-01-05T09:26:09.131Z"
   }
 ]

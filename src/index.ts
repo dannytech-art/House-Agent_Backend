@@ -40,6 +40,9 @@ app.use(cors({
   credentials: false,
 }));
 
+// Special raw body parser for payment webhooks (must come before JSON parser)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -96,6 +99,8 @@ httpServer.listen(PORT, () => {
   console.log(`🌐 CORS: Universal (all origins allowed)`);
   console.log(`📝 API Base URL: http://localhost:${PORT}/api`);
   console.log(`🔌 Socket.IO: Enabled (ws://localhost:${PORT})`);
+  console.log(`💳 Paystack: ${config.paystack.secretKey ? '✅ Configured' : '❌ Not configured (add PAYSTACK_SECRET_KEY to .env)'}`);
+  console.log(`☁️ Cloudinary: ${config.cloudinary.cloudName ? '✅ Configured' : '❌ Not configured'}`);
 });
 
 export { io };

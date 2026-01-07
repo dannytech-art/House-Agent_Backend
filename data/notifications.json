@@ -197,5 +197,82 @@
       "scheduledTime": "10:00"
     },
     "createdAt": "2026-01-01T00:27:57.824Z"
+  },
+  {
+    "id": "605b7b66-d80d-4120-aed8-2f1b7e9d77e1",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "title": "Credits Purchased! 💰",
+    "message": "10 credits have been added to your account.",
+    "type": "success",
+    "read": false,
+    "metadata": {
+      "transactionId": "d14c518a-c03b-4b62-97b6-635433f13680",
+      "credits": 10
+    },
+    "createdAt": "2026-01-05T09:13:38.011Z"
+  },
+  {
+    "id": "360f7f95-5658-412c-a0f3-9041da81e7ae",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "title": "Credits Purchased! 💰",
+    "message": "30 credits have been added to your account.",
+    "type": "success",
+    "read": false,
+    "metadata": {
+      "transactionId": "18ee0aa4-61ab-434c-987e-8113ed58a1d2",
+      "credits": 30
+    },
+    "createdAt": "2026-01-05T09:19:37.617Z"
+  },
+  {
+    "id": "c3708102-a8fa-4e3f-b1b2-3a8f303e7086",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "title": "Credits Purchased! 💰",
+    "message": "30 credits have been added to your account.",
+    "type": "success",
+    "read": false,
+    "metadata": {
+      "transactionId": "524d2c35-929b-480d-9f75-f1b4132b212a",
+      "credits": 30
+    },
+    "createdAt": "2026-01-05T09:24:41.033Z"
+  },
+  {
+    "id": "0ee3895e-ec92-40ef-9883-9d80652d4fc2",
+    "userId": "1620a368-adea-4cda-82ca-c0159a726924",
+    "title": "Inspection Confirmed",
+    "message": "Your inspection for \"3-Bedroom flat apartment\" has been confirmed!",
+    "type": "success",
+    "read": false,
+    "metadata": {
+      "inspectionId": "67f2c375-6b3c-4b8e-85fe-5916d660235d",
+      "propertyId": "a5048a23-8949-4c78-a7f8-e8411fb4359f"
+    },
+    "createdAt": "2026-01-05T09:26:07.659Z"
+  },
+  {
+    "id": "3cbf8c1e-42fa-46e0-855c-d0a936943f80",
+    "userId": "1620a368-adea-4cda-82ca-c0159a726924",
+    "title": "Agent Viewed Your Interest! 👀",
+    "message": "Daniel has unlocked your interest in \"3-Bedroom flat apartment\". Expect a message soon!",
+    "type": "info",
+    "read": false,
+    "metadata": {
+      "chatSessionId": "793decea-57a1-4461-97b9-7e5959ac03a0"
+    },
+    "createdAt": "2026-01-05T09:26:09.154Z"
+  },
+  {
+    "id": "1832ef46-9c47-4365-91e0-786a1972bea0",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "title": "Credits Purchased! 💰",
+    "message": "10 credits have been added to your account.",
+    "type": "success",
+    "read": false,
+    "metadata": {
+      "transactionId": "2dd24c3d-37f8-4527-8582-b8f170d6e92a",
+      "credits": 10
+    },
+    "createdAt": "2026-01-07T07:37:22.375Z"
   }
 ]

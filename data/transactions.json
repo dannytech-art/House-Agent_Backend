@@ -1,1 +1,511 @@
-[]
+[
+  {
+    "id": "d14c518a-c03b-4b62-97b6-635433f13680",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 1000,
+    "credits": 10,
+    "description": "Purchase 10 + 0 bonus credits",
+    "timestamp": "2026-01-05T09:13:08.400Z",
+    "status": "completed",
+    "metadata": {
+      "bundleId": "bundle-1",
+      "reference": "CREDIT_MK0Y0J00_97WNW8",
+      "baseCredits": 10,
+      "bonusCredits": 0,
+      "paystackId": 5704939125,
+      "paidAt": "2026-01-05T09:13:33.000Z",
+      "channel": "card"
+    }
+  },
+  {
+    "id": "a75753bd-d7b7-45a9-95b6-3cf494f321de",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-05T09:18:42.696Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK0Y7OY0_0ZBWKL",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "18ee0aa4-61ab-434c-987e-8113ed58a1d2",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-05T09:18:57.296Z",
+    "status": "completed",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK0Y807K_Z2LB43",
+      "baseCredits": 25,
+      "bonusCredits": 5,
+      "paystackId": 5704958340,
+      "paidAt": "2026-01-05T09:19:33.000Z",
+      "channel": "card"
+    }
+  },
+  {
+    "id": "7756983b-6858-4161-9294-6cecd1ece6d5",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-05T09:24:14.197Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK0YESQD_V7OQUK",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "524d2c35-929b-480d-9f75-f1b4132b212a",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-05T09:24:26.945Z",
+    "status": "completed",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK0YF2KH_7Q7G2C",
+      "baseCredits": 25,
+      "bonusCredits": 5,
+      "paystackId": 5704974592,
+      "paidAt": "2026-01-05T09:24:37.000Z",
+      "channel": "card"
+    }
+  },
+  {
+    "id": "aa55b038-9e69-4fb1-8a5b-d4b28d6ab3af",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 6000,
+    "credits": 125,
+    "description": "Purchase 100 + 25 bonus credits",
+    "timestamp": "2026-01-05T09:44:09.941Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-4",
+      "reference": "CREDIT_MK0Z4FDH_TGWB6T",
+      "baseCredits": 100,
+      "bonusCredits": 25
+    }
+  },
+  {
+    "id": "e0c8d465-3e47-4065-a280-6b2493928d78",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 6000,
+    "credits": 125,
+    "description": "Purchase 100 + 25 bonus credits",
+    "timestamp": "2026-01-05T09:44:24.013Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-4",
+      "reference": "CREDIT_MK0Z4Q8D_8CASBT",
+      "baseCredits": 100,
+      "bonusCredits": 25
+    }
+  },
+  {
+    "id": "7b8d0eed-a25a-4ad5-a9ab-80c489e4d580",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 6000,
+    "credits": 125,
+    "description": "Purchase 100 + 25 bonus credits",
+    "timestamp": "2026-01-05T09:44:35.370Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-4",
+      "reference": "CREDIT_MK0Z4YZU_8QO4Q8",
+      "baseCredits": 100,
+      "bonusCredits": 25
+    }
+  },
+  {
+    "id": "f7d05e03-e1d5-454f-b254-41b4faeebdae",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-06T11:31:17.909Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK2IE1W5_ECB68T",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "d530ff71-6c89-4776-83c4-5e8a79b17a2e",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-06T11:31:30.978Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK2IEBZ6_9HK24N",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "83838a23-7c66-433d-ae93-b343a7b1fbd4",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 1000,
+    "credits": 10,
+    "description": "Purchase 10 + 0 bonus credits",
+    "timestamp": "2026-01-06T11:31:44.921Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-1",
+      "reference": "CREDIT_MK2IEMQH_V619WN",
+      "baseCredits": 10,
+      "bonusCredits": 0
+    }
+  },
+  {
+    "id": "a5c22719-8403-4487-8080-099cf32fa8ba",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 6000,
+    "credits": 125,
+    "description": "Purchase 100 + 25 bonus credits",
+    "timestamp": "2026-01-06T11:36:28.189Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-4",
+      "reference": "CREDIT_MK2IKPB1_FQXHHI",
+      "baseCredits": 100,
+      "bonusCredits": 25
+    }
+  },
+  {
+    "id": "fc2145e0-189c-4af9-99ed-5e31d889961b",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-06T11:45:37.581Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK2IWH7X_1A7XB2",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "37650acf-7a2f-44f2-bfb9-98fc24b29406",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-06T11:46:06.993Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK2IX3WX_CR6OUO",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "7c221143-0861-4268-bc25-dc37118a7965",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-06T11:53:30.824Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK2J6MDK_KIKYK3",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "3f915601-2ae8-49c3-9415-0c95d4ff931a",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 3500,
+    "credits": 60,
+    "description": "Purchase 50 + 10 bonus credits",
+    "timestamp": "2026-01-06T11:53:56.500Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-3",
+      "reference": "CREDIT_MK2J766S_9XR48Y",
+      "baseCredits": 50,
+      "bonusCredits": 10
+    }
+  },
+  {
+    "id": "61d3b4cb-7012-4bf2-9630-86864f21a848",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 3500,
+    "credits": 60,
+    "description": "Purchase 50 + 10 bonus credits",
+    "timestamp": "2026-01-06T11:54:04.156Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-3",
+      "reference": "CREDIT_MK2J7C3G_7WQNST",
+      "baseCredits": 50,
+      "bonusCredits": 10
+    }
+  },
+  {
+    "id": "fe494fb7-05da-4c20-9619-55326400600a",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 3500,
+    "credits": 60,
+    "description": "Purchase 50 + 10 bonus credits",
+    "timestamp": "2026-01-06T11:54:24.996Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-3",
+      "reference": "CREDIT_MK2J7S6C_X67YQS",
+      "baseCredits": 50,
+      "bonusCredits": 10
+    }
+  },
+  {
+    "id": "1711372f-9ad1-4d3d-b63e-dd4180fda424",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-06T12:19:06.906Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK2K3JMG_80F166",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "9159480f-9e31-4c38-bd5f-be224662fa88",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 6000,
+    "credits": 125,
+    "description": "Purchase 100 + 25 bonus credits",
+    "timestamp": "2026-01-06T12:20:10.023Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-4",
+      "reference": "CREDIT_MK2K4WBR_GD4724",
+      "baseCredits": 100,
+      "bonusCredits": 25
+    }
+  },
+  {
+    "id": "d5526209-d5e2-4c7d-8df0-a29fde6e658e",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 3500,
+    "credits": 60,
+    "description": "Purchase 50 + 10 bonus credits",
+    "timestamp": "2026-01-06T12:21:36.363Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-3",
+      "reference": "CREDIT_MK2K6QY3_N6QAJ3",
+      "baseCredits": 50,
+      "bonusCredits": 10
+    }
+  },
+  {
+    "id": "85c17ec6-3abf-42bc-a026-af61c000c888",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-07T06:22:16.611Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK3MSI03_OYX961",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "c38c9fcc-15ce-4651-bff7-9fcaf2a8d807",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 3500,
+    "credits": 60,
+    "description": "Purchase 50 + 10 bonus credits",
+    "timestamp": "2026-01-07T06:23:04.001Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-3",
+      "reference": "CREDIT_MK3MTIKH_8C0QYI",
+      "baseCredits": 50,
+      "bonusCredits": 10
+    }
+  },
+  {
+    "id": "e7638eca-6af1-447f-9d95-d627af3a71e6",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 3500,
+    "credits": 60,
+    "description": "Purchase 50 + 10 bonus credits",
+    "timestamp": "2026-01-07T06:24:04.790Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-3",
+      "reference": "CREDIT_MK3MUTH2_G1QAOG",
+      "baseCredits": 50,
+      "bonusCredits": 10
+    }
+  },
+  {
+    "id": "4a6a0547-648c-43ec-a5e0-055798d0666b",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-07T06:32:23.500Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK3N5IA4_PRRCWE",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "66daee55-cd2a-4f8c-94c5-a123cd6e670e",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 1000,
+    "credits": 10,
+    "description": "Purchase 10 + 0 bonus credits",
+    "timestamp": "2026-01-07T06:33:38.052Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-1",
+      "reference": "CREDIT_MK3N73T0_ZWTAAJ",
+      "baseCredits": 10,
+      "bonusCredits": 0
+    }
+  },
+  {
+    "id": "f39c2b11-fe61-4ce4-a516-22197013b664",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-07T06:38:06.571Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK3NCUZV_YNMJN0",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "50aba459-8168-40e0-9f3b-c13c2cbd2c37",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 1000,
+    "credits": 10,
+    "description": "Purchase 10 + 0 bonus credits",
+    "timestamp": "2026-01-07T06:48:39.498Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-1",
+      "reference": "CREDIT_MK3NQFD6_TK432U",
+      "baseCredits": 10,
+      "bonusCredits": 0
+    }
+  },
+  {
+    "id": "c5776a89-0199-47e9-bcd8-8aee8f639e48",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 1000,
+    "credits": 10,
+    "description": "Purchase 10 + 0 bonus credits",
+    "timestamp": "2026-01-07T07:02:28.348Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-1",
+      "reference": "CREDIT_MK3O86WS_QZ3HQ2",
+      "baseCredits": 10,
+      "bonusCredits": 0
+    }
+  },
+  {
+    "id": "e1f54bdb-a78f-44b4-bfad-f4d2ae460871",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 2000,
+    "credits": 30,
+    "description": "Purchase 25 + 5 bonus credits",
+    "timestamp": "2026-01-07T07:13:00.137Z",
+    "status": "pending",
+    "metadata": {
+      "bundleId": "bundle-2",
+      "reference": "CREDIT_MK3OLQEH_Q3PZRA",
+      "baseCredits": 25,
+      "bonusCredits": 5
+    }
+  },
+  {
+    "id": "2dd24c3d-37f8-4527-8582-b8f170d6e92a",
+    "userId": "7b87b7a3-affb-4ac8-844e-a9424d81404f",
+    "type": "credit_purchase",
+    "amount": 1000,
+    "credits": 10,
+    "description": "Purchase 10 + 0 bonus credits",
+    "timestamp": "2026-01-07T07:19:38.790Z",
+    "status": "completed",
+    "metadata": {
+      "bundleId": "bundle-1",
+      "reference": "CREDIT_MK3OUA06_GHU6RL",
+      "baseCredits": 10,
+      "bonusCredits": 0,
+      "paystackId": 9948165,
+      "paidAt": "2026-01-07T07:37:22.357Z",
+      "channel": "card",
+      "applied": true
+    }
+  }
+]

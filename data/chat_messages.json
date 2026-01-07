@@ -19,7 +19,7 @@
     "message": "Hi, sir im interested ",
     "timestamp": "2025-12-31T23:14:02.193Z",
     "type": "text",
-    "read": false
+    "read": true
   },
   {
     "id": "b0721314-1e54-4705-a957-1f197dce939c",

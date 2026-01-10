@@ -1,5 +1,5 @@
+// @ts-nocheck
 import { Router } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { interestModel } from '../models/Interest.js';
 import { propertyModel } from '../models/Property.js';
 import { userModel } from '../models/User.js';
@@ -14,7 +14,7 @@ router.get('/', authenticate, async (req, res) => {
         const { propertyId, seekerId, status } = req.query;
         let interests;
         if (propertyId) {
-            interests = interestModel.findByProperty(propertyId);
+            interests = await interestModel.findByProperty(propertyId);
         }
         else if (seekerId) {
             // Only allow users to see their own interests or admins
@@ -24,27 +24,28 @@ router.get('/', authenticate, async (req, res) => {
                     error: 'Not authorized to view these interests',
                 });
             }
-            interests = interestModel.findBySeeker(seekerId);
+            interests = await interestModel.findBySeeker(seekerId);
         }
         else if (req.userRole === 'agent') {
             // Get interests for all properties owned by this agent
-            const agentProperties = propertyModel.findByAgent(req.userId);
+            const agentProperties = await propertyModel.findByAgent(req.userId);
             const propertyIds = agentProperties.map(p => p.id);
-            interests = interestModel.findAll().filter(i => propertyIds.includes(i.propertyId));
+            const allInterests = await interestModel.findAll();
+            interests = allInterests.filter(i => propertyIds.includes(i.propertyId));
         }
         else if (req.userRole === 'admin') {
-            interests = interestModel.findAll();
+            interests = await interestModel.findAll();
         }
         else {
-            interests = interestModel.findBySeeker(req.userId);
+            interests = await interestModel.findBySeeker(req.userId);
         }
         if (status) {
             interests = interests.filter(i => i.status === status);
         }
         // Enrich interests with property and chat session info
-        const enrichedInterests = interests.map(interest => {
-            const property = propertyModel.findById(interest.propertyId);
-            const chatSession = chatSessionModel.findByInterest(interest.id);
+        const enrichedInterests = await Promise.all(interests.map(async (interest) => {
+            const property = await propertyModel.findById(interest.propertyId);
+            const chatSession = await chatSessionModel.findByInterest(interest.id);
             return {
                 ...interest,
                 property: property ? {
@@ -56,7 +57,7 @@ router.get('/', authenticate, async (req, res) => {
                 } : null,
                 chatSessionId: chatSession?.id || null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInterests,
@@ -75,23 +76,24 @@ router.get('/agent/seekers', authenticate, requireRole('agent'), async (req, res
     try {
         const { propertyId, status } = req.query;
         // Get agent's properties
-        const agentProperties = propertyModel.findByAgent(req.userId);
+        const agentProperties = await propertyModel.findByAgent(req.userId);
         const propertyIds = propertyId
             ? [propertyId]
             : agentProperties.map(p => p.id);
         // Get all interests for these properties
-        let interests = interestModel.findAll().filter(i => propertyIds.includes(i.propertyId));
+        const allInterests = await interestModel.findAll();
+        let interests = allInterests.filter(i => propertyIds.includes(i.propertyId));
         if (status) {
             interests = interests.filter(i => i.status === status);
         }
         // Sort by most recent first
         interests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         // Enrich with full details
-        const enrichedInterests = interests.map(interest => {
-            const property = propertyModel.findById(interest.propertyId);
-            const seeker = userModel.findById(interest.seekerId);
-            const chatSession = chatSessionModel.findByInterest(interest.id);
-            const inspection = inspectionModel.findByInterest(interest.id);
+        const enrichedInterests = await Promise.all(interests.map(async (interest) => {
+            const property = await propertyModel.findById(interest.propertyId);
+            const seeker = await userModel.findById(interest.seekerId);
+            const chatSession = await chatSessionModel.findByInterest(interest.id);
+            const inspection = await inspectionModel.findByInterest(interest.id);
             return {
                 id: interest.id,
                 status: interest.status,
@@ -116,12 +118,11 @@ router.get('/agent/seekers', authenticate, requireRole('agent'), async (req, res
                 inspection: inspection ? {
                     id: inspection.id,
                     scheduledDate: inspection.scheduledDate,
-                    scheduledTime: inspection.scheduledTime,
                     status: inspection.status,
                     notes: inspection.notes,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInterests,
@@ -146,7 +147,7 @@ router.get('/agent/seekers', authenticate, requireRole('agent'), async (req, res
 router.get('/property/:propertyId', authenticate, async (req, res) => {
     try {
         const { propertyId } = req.params;
-        const property = propertyModel.findById(propertyId);
+        const property = await propertyModel.findById(propertyId);
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -160,12 +161,12 @@ router.get('/property/:propertyId', authenticate, async (req, res) => {
                 error: 'Not authorized to view interests for this property',
             });
         }
-        const interests = interestModel.findByProperty(propertyId);
+        const interests = await interestModel.findByProperty(propertyId);
         // Enrich with seeker and inspection info
-        const enrichedInterests = interests.map(interest => {
-            const seeker = userModel.findById(interest.seekerId);
-            const chatSession = chatSessionModel.findByInterest(interest.id);
-            const inspection = inspectionModel.findByInterest(interest.id);
+        const enrichedInterests = await Promise.all(interests.map(async (interest) => {
+            const seeker = await userModel.findById(interest.seekerId);
+            const chatSession = await chatSessionModel.findByInterest(interest.id);
+            const inspection = await inspectionModel.findByInterest(interest.id);
             return {
                 ...interest,
                 seekerPhone: interest.unlocked ? interest.seekerPhone : '******' + interest.seekerPhone.slice(-4),
@@ -178,11 +179,10 @@ router.get('/property/:propertyId', authenticate, async (req, res) => {
                 inspection: inspection ? {
                     id: inspection.id,
                     scheduledDate: inspection.scheduledDate,
-                    scheduledTime: inspection.scheduledTime,
                     status: inspection.status,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInterests,
@@ -204,12 +204,12 @@ router.get('/property/:propertyId', authenticate, async (req, res) => {
 // Get my interests (for seekers/clients) with inspection info
 router.get('/my', authenticate, async (req, res) => {
     try {
-        const interests = interestModel.findBySeeker(req.userId);
+        const interests = await interestModel.findBySeeker(req.userId);
         // Enrich with property info, chat session, and inspection
-        const enrichedInterests = interests.map(interest => {
-            const property = propertyModel.findById(interest.propertyId);
-            const chatSession = chatSessionModel.findByInterest(interest.id);
-            const inspection = inspectionModel.findByInterest(interest.id);
+        const enrichedInterests = await Promise.all(interests.map(async (interest) => {
+            const property = await propertyModel.findById(interest.propertyId);
+            const chatSession = await chatSessionModel.findByInterest(interest.id);
+            const inspection = await inspectionModel.findByInterest(interest.id);
             return {
                 ...interest,
                 property: property ? {
@@ -230,13 +230,11 @@ router.get('/my', authenticate, async (req, res) => {
                 inspection: inspection ? {
                     id: inspection.id,
                     scheduledDate: inspection.scheduledDate,
-                    scheduledTime: inspection.scheduledTime,
                     status: inspection.status,
                     notes: inspection.notes,
-                    agentNotes: inspection.agentNotes,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInterests,
@@ -251,7 +249,6 @@ router.get('/my', authenticate, async (req, res) => {
     }
 });
 // Create interest (seekers expressing interest in a property)
-// This automatically creates a chat session and notifies both parties
 router.post('/', authenticate, async (req, res) => {
     try {
         const { propertyId, message, seriousnessScore } = req.body;
@@ -261,7 +258,7 @@ router.post('/', authenticate, async (req, res) => {
                 error: 'Property ID is required',
             });
         }
-        const property = propertyModel.findById(propertyId);
+        const property = await propertyModel.findById(propertyId);
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -275,7 +272,7 @@ router.post('/', authenticate, async (req, res) => {
                 error: 'This property is no longer available',
             });
         }
-        const seeker = userModel.findById(req.userId);
+        const seeker = await userModel.findById(req.userId);
         if (!seeker) {
             return res.status(404).json({
                 success: false,
@@ -283,10 +280,10 @@ router.post('/', authenticate, async (req, res) => {
             });
         }
         // Check if already expressed interest
-        const existingInterest = interestModel.findOne(i => i.propertyId === propertyId && i.seekerId === req.userId);
+        const existingInterest = await interestModel.checkExistingInterest(propertyId, req.userId);
         if (existingInterest) {
             // Return existing interest with chat session
-            const chatSession = chatSessionModel.findByInterest(existingInterest.id);
+            const chatSession = await chatSessionModel.findByInterest(existingInterest.id);
             return res.status(400).json({
                 success: false,
                 error: 'You have already expressed interest in this property',
@@ -298,46 +295,33 @@ router.post('/', authenticate, async (req, res) => {
         }
         const now = new Date().toISOString();
         // Create the interest
-        const newInterest = {
-            id: uuidv4(),
+        const newInterest = await interestModel.create({
             propertyId,
             seekerId: req.userId,
             seekerName: seeker.name,
             seekerPhone: seeker.phone,
             message: message || '',
             seriousnessScore: seriousnessScore || 5,
-            createdAt: now,
             unlocked: false,
             status: 'pending',
-            updatedAt: now,
-        };
-        interestModel.create(newInterest);
+        });
         // Automatically create a chat session between seeker and agent
-        const chatSession = {
-            id: uuidv4(),
+        const chatSession = await chatSessionModel.create({
             participantIds: [req.userId, property.agentId],
             propertyId: property.id,
             interestId: newInterest.id,
-            createdAt: now,
-            lastMessageAt: now,
-            updatedAt: now,
-        };
-        chatSessionModel.create(chatSession);
+        });
         // Send initial system message in the chat
-        const initialMessage = {
-            id: uuidv4(),
+        await chatMessageModel.create({
             sessionId: chatSession.id,
             senderId: req.userId,
             senderName: seeker.name,
             senderAvatar: seeker.avatar,
             message: message || `Hi, I'm interested in your property "${property.title}". I'd like to know more about it.`,
-            timestamp: now,
             type: 'text',
-            read: false,
-        };
-        chatMessageModel.create(initialMessage);
+        });
         // Send notifications to both parties
-        notifyInterestExpressed({
+        await notifyInterestExpressed({
             agentId: property.agentId,
             seekerId: req.userId,
             seekerName: seeker.name,
@@ -346,11 +330,10 @@ router.post('/', authenticate, async (req, res) => {
             chatSessionId: chatSession.id,
         });
         // Update agent's total interests
-        const agent = userModel.findById(property.agentId);
+        const agent = await userModel.findById(property.agentId);
         if (agent && agent.role === 'agent') {
-            userModel.update(agent.id, {
+            await userModel.update(agent.id, {
                 totalInterests: (agent.totalInterests || 0) + 1,
-                updatedAt: now,
             });
         }
         res.status(201).json({
@@ -379,7 +362,7 @@ router.put('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        const interest = interestModel.findById(id);
+        const interest = await interestModel.findById(id);
         if (!interest) {
             return res.status(404).json({
                 success: false,
@@ -387,7 +370,7 @@ router.put('/:id', authenticate, async (req, res) => {
             });
         }
         // Verify authorization
-        const property = propertyModel.findById(interest.propertyId);
+        const property = await propertyModel.findById(interest.propertyId);
         const isPropertyOwner = property && property.agentId === req.userId;
         const isSeeker = interest.seekerId === req.userId;
         const isAdmin = req.userRole === 'admin';
@@ -402,8 +385,7 @@ router.put('/:id', authenticate, async (req, res) => {
         delete updates.propertyId;
         delete updates.seekerId;
         delete updates.createdAt;
-        updates.updatedAt = new Date().toISOString();
-        const updatedInterest = interestModel.update(id, updates);
+        const updatedInterest = await interestModel.update(id, updates);
         res.json({
             success: true,
             data: updatedInterest,
@@ -421,14 +403,14 @@ router.put('/:id', authenticate, async (req, res) => {
 router.post('/:id/unlock', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
-        const interest = interestModel.findById(id);
+        const interest = await interestModel.findById(id);
         if (!interest) {
             return res.status(404).json({
                 success: false,
                 error: 'Interest not found',
             });
         }
-        const property = propertyModel.findById(interest.propertyId);
+        const property = await propertyModel.findById(interest.propertyId);
         if (!property || property.agentId !== req.userId) {
             return res.status(403).json({
                 success: false,
@@ -441,28 +423,25 @@ router.post('/:id/unlock', authenticate, async (req, res) => {
                 error: 'Interest is already unlocked',
             });
         }
-        const agent = userModel.findById(req.userId);
+        const agent = await userModel.findById(req.userId);
         const unlockCost = 5; // Credits to unlock
-        if (!agent || agent.credits < unlockCost) {
+        if (!agent || (agent.credits || 0) < unlockCost) {
             return res.status(400).json({
                 success: false,
                 error: 'Insufficient credits to unlock interest',
             });
         }
         // Deduct credits and unlock
-        const now = new Date().toISOString();
-        userModel.update(agent.id, {
-            credits: agent.credits - unlockCost,
-            updatedAt: now,
+        await userModel.update(agent.id, {
+            credits: (agent.credits || 0) - unlockCost,
         });
-        const updatedInterest = interestModel.update(id, {
+        const updatedInterest = await interestModel.update(id, {
             unlocked: true,
             status: 'contacted',
-            updatedAt: now,
         });
         // Notify the seeker that their interest was unlocked
-        const chatSession = chatSessionModel.findByInterest(id);
-        notifyInterestUnlocked({
+        const chatSession = await chatSessionModel.findByInterest(id);
+        await notifyInterestUnlocked({
             seekerId: interest.seekerId,
             agentName: agent.name,
             propertyTitle: property.title,
@@ -473,7 +452,7 @@ router.post('/:id/unlock', authenticate, async (req, res) => {
             data: {
                 interest: updatedInterest,
                 chatSessionId: chatSession?.id,
-                creditsRemaining: agent.credits - unlockCost,
+                creditsRemaining: (agent.credits || 0) - unlockCost,
             },
         });
     }
@@ -489,7 +468,7 @@ router.post('/:id/unlock', authenticate, async (req, res) => {
 router.get('/:id/chat', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
-        const interest = interestModel.findById(id);
+        const interest = await interestModel.findById(id);
         if (!interest) {
             return res.status(404).json({
                 success: false,
@@ -497,7 +476,7 @@ router.get('/:id/chat', authenticate, async (req, res) => {
             });
         }
         // Verify user is participant
-        const property = propertyModel.findById(interest.propertyId);
+        const property = await propertyModel.findById(interest.propertyId);
         const isAgent = property && property.agentId === req.userId;
         const isSeeker = interest.seekerId === req.userId;
         if (!isAgent && !isSeeker && req.userRole !== 'admin') {
@@ -506,7 +485,7 @@ router.get('/:id/chat', authenticate, async (req, res) => {
                 error: 'Not authorized to view this chat',
             });
         }
-        const chatSession = chatSessionModel.findByInterest(id);
+        const chatSession = await chatSessionModel.findByInterest(id);
         if (!chatSession) {
             return res.status(404).json({
                 success: false,
@@ -514,10 +493,10 @@ router.get('/:id/chat', authenticate, async (req, res) => {
             });
         }
         // Get messages
-        const messages = chatMessageModel.findBySession(chatSession.id);
+        const messages = await chatMessageModel.findBySession(chatSession.id);
         // Get other participant info
         const otherParticipantId = chatSession.participantIds.find(pid => pid !== req.userId);
-        const otherParticipant = otherParticipantId ? userModel.findById(otherParticipantId) : null;
+        const otherParticipant = otherParticipantId ? await userModel.findById(otherParticipantId) : null;
         res.json({
             success: true,
             data: {

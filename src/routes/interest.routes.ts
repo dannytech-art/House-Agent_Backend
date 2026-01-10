@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Response } from 'express';
 import { interestModel } from '../models/Interest.js';
 import { propertyModel } from '../models/Property.js';

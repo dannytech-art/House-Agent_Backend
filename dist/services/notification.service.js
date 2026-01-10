@@ -1,28 +1,30 @@
-import { v4 as uuidv4 } from 'uuid';
 import { notificationModel } from '../models/Notification.js';
 /**
  * Send a notification to a specific user
  */
-export const sendNotification = (payload) => {
-    const notification = {
-        id: uuidv4(),
-        userId: payload.userId,
-        title: payload.title,
-        message: payload.message,
-        type: payload.type,
-        read: false,
-        metadata: payload.metadata,
-        createdAt: new Date().toISOString(),
-    };
-    notificationModel.create(notification);
-    return notification.id;
+export const sendNotification = async (payload) => {
+    try {
+        const notification = await notificationModel.create({
+            userId: payload.userId,
+            title: payload.title,
+            message: payload.message,
+            type: payload.type,
+            read: false,
+            metadata: payload.metadata,
+        });
+        return notification.id;
+    }
+    catch (error) {
+        console.error('Failed to send notification:', error);
+        return '';
+    }
 };
 /**
  * Send notification when a client expresses interest in a property
  */
-export const notifyInterestExpressed = (data) => {
+export const notifyInterestExpressed = async (data) => {
     // Notify the agent about new interest
-    const agentNotificationId = sendNotification({
+    const agentNotificationId = await sendNotification({
         userId: data.agentId,
         title: 'New Interest Received! 🎉',
         message: `${data.seekerName} has expressed interest in your property "${data.propertyTitle}". A chat has been started.`,
@@ -34,7 +36,7 @@ export const notifyInterestExpressed = (data) => {
         },
     });
     // Notify the seeker that their interest was registered
-    const seekerNotificationId = sendNotification({
+    const seekerNotificationId = await sendNotification({
         userId: data.seekerId,
         title: 'Interest Sent Successfully! ✅',
         message: `You've expressed interest in "${data.propertyTitle}". A chat has been started with the agent. They'll reach out to you soon!`,
@@ -50,7 +52,7 @@ export const notifyInterestExpressed = (data) => {
 /**
  * Send notification when a new message is received
  */
-export const notifyNewMessage = (data) => {
+export const notifyNewMessage = async (data) => {
     return sendNotification({
         userId: data.recipientId,
         title: `New message from ${data.senderName}`,
@@ -66,7 +68,7 @@ export const notifyNewMessage = (data) => {
 /**
  * Send notification when property is listed
  */
-export const notifyPropertyListed = (data) => {
+export const notifyPropertyListed = async (data) => {
     return sendNotification({
         userId: data.agentId,
         title: 'Property Listed Successfully! 🏠',
@@ -80,7 +82,7 @@ export const notifyPropertyListed = (data) => {
 /**
  * Send notification when interest is unlocked by agent
  */
-export const notifyInterestUnlocked = (data) => {
+export const notifyInterestUnlocked = async (data) => {
     return sendNotification({
         userId: data.seekerId,
         title: 'Agent Viewed Your Interest! 👀',

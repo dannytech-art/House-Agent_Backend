@@ -1,32 +1,55 @@
 import { Router } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { chatSessionModel, chatMessageModel } from '../models/Chat.js';
 import { userModel } from '../models/User.js';
+import { propertyModel } from '../models/Property.js';
+import { interestModel } from '../models/Interest.js';
 import { authenticate } from '../middleware/auth.js';
 import { notifyNewMessage } from '../services/notification.service.js';
 const router = Router();
 // Get all chat sessions for user
 router.get('/', authenticate, async (req, res) => {
     try {
-        const sessions = chatSessionModel.findByParticipant(req.userId);
-        // Enrich sessions with last message and participant info
-        const enrichedSessions = sessions.map(session => {
-            const messages = chatMessageModel.findBySession(session.id);
+        const sessions = await chatSessionModel.findByParticipant(req.userId);
+        const currentUser = await userModel.findById(req.userId);
+        const isAgent = currentUser?.role === 'agent';
+        // Enrich sessions with last message, participant info, and unlock status
+        const enrichedSessions = await Promise.all(sessions.map(async (session) => {
+            const messages = await chatMessageModel.findBySession(session.id);
             const lastMessage = messages[messages.length - 1];
             const unreadCount = messages.filter(m => !m.read && m.senderId !== req.userId).length;
             const otherParticipantId = session.participantIds.find(id => id !== req.userId);
-            const otherParticipant = otherParticipantId ? userModel.findById(otherParticipantId) : null;
+            const otherParticipant = otherParticipantId ? await userModel.findById(otherParticipantId) : null;
+            // Check if interest is unlocked (for agents)
+            let isUnlocked = true;
+            let interest = null;
+            if (session.interestId) {
+                interest = await interestModel.findById(session.interestId);
+                if (interest && isAgent) {
+                    isUnlocked = interest.unlocked;
+                }
+            }
+            // Get property info
+            const property = session.propertyId ? await propertyModel.findById(session.propertyId) : null;
             return {
                 ...session,
                 lastMessage,
                 unreadCount,
+                isUnlocked,
+                canSendMessage: isAgent ? isUnlocked : true, // Seekers can always send
+                property: property ? {
+                    id: property.id,
+                    title: property.title,
+                    location: property.location,
+                    images: property.images,
+                } : null,
                 otherParticipant: otherParticipant ? {
                     id: otherParticipant.id,
                     name: otherParticipant.name,
                     avatar: otherParticipant.avatar,
+                    role: otherParticipant.role,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedSessions,
@@ -44,7 +67,7 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:sessionId/messages', authenticate, async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const session = chatSessionModel.findById(sessionId);
+        const session = await chatSessionModel.findById(sessionId);
         if (!session) {
             return res.status(404).json({
                 success: false,
@@ -57,13 +80,13 @@ router.get('/:sessionId/messages', authenticate, async (req, res) => {
                 error: 'Not authorized to view this chat',
             });
         }
-        const messages = chatMessageModel.findBySession(sessionId);
+        const messages = await chatMessageModel.findBySession(sessionId);
         // Mark messages as read
-        messages.forEach(msg => {
+        for (const msg of messages) {
             if (!msg.read && msg.senderId !== req.userId) {
-                chatMessageModel.update(msg.id, { read: true });
+                await chatMessageModel.update(msg.id, { read: true });
             }
-        });
+        }
         res.json({
             success: true,
             data: messages,
@@ -88,7 +111,7 @@ router.post('/:sessionId/messages', authenticate, async (req, res) => {
                 error: 'Message is required',
             });
         }
-        const session = chatSessionModel.findById(sessionId);
+        const session = await chatSessionModel.findById(sessionId);
         if (!session) {
             return res.status(404).json({
                 success: false,
@@ -101,36 +124,50 @@ router.post('/:sessionId/messages', authenticate, async (req, res) => {
                 error: 'Not authorized to send messages in this chat',
             });
         }
-        const sender = userModel.findById(req.userId);
+        const sender = await userModel.findById(req.userId);
         if (!sender) {
             return res.status(404).json({
                 success: false,
                 error: 'User not found',
             });
         }
-        const now = new Date().toISOString();
-        const newMessage = {
-            id: uuidv4(),
+        // Check if agent needs to unlock the interest first
+        if (sender.role === 'agent' && session.interestId) {
+            const interest = await interestModel.findById(session.interestId);
+            if (interest && !interest.unlocked) {
+                // Get agent's credit balance
+                const agent = sender;
+                const credits = agent.credits || 0;
+                return res.status(403).json({
+                    success: false,
+                    error: 'You need to unlock this seeker profile to send messages',
+                    data: {
+                        requiresUnlock: true,
+                        interestId: session.interestId,
+                        unlockCost: 5,
+                        currentCredits: credits,
+                        hasEnoughCredits: credits >= 5,
+                    },
+                });
+            }
+        }
+        const newMessage = await chatMessageModel.create({
             sessionId,
             senderId: req.userId,
             senderName: sender.name,
             senderAvatar: sender.avatar,
             message,
-            timestamp: now,
             type,
             metadata,
-            read: false,
-        };
-        chatMessageModel.create(newMessage);
+        });
         // Update session's lastMessageAt
-        chatSessionModel.update(sessionId, {
-            lastMessageAt: now,
-            updatedAt: now,
+        await chatSessionModel.update(sessionId, {
+            lastMessageAt: new Date().toISOString(),
         });
         // Notify the other participant about the new message
         const recipientId = session.participantIds.find(id => id !== req.userId);
         if (recipientId) {
-            notifyNewMessage({
+            await notifyNewMessage({
                 recipientId,
                 senderName: sender.name,
                 chatSessionId: sessionId,
@@ -160,7 +197,7 @@ router.post('/', authenticate, async (req, res) => {
                 error: 'Participant ID is required',
             });
         }
-        const participant = userModel.findById(participantId);
+        const participant = await userModel.findById(participantId);
         if (!participant) {
             return res.status(404).json({
                 success: false,
@@ -168,8 +205,8 @@ router.post('/', authenticate, async (req, res) => {
             });
         }
         // Check if session already exists between these users
-        const existingSession = chatSessionModel.findOne(s => s.participantIds.includes(req.userId) &&
-            s.participantIds.includes(participantId) &&
+        const sessions = await chatSessionModel.findByParticipant(req.userId);
+        const existingSession = sessions.find(s => s.participantIds.includes(participantId) &&
             (!propertyId || s.propertyId === propertyId));
         if (existingSession) {
             return res.json({
@@ -177,32 +214,22 @@ router.post('/', authenticate, async (req, res) => {
                 data: existingSession,
             });
         }
-        const now = new Date().toISOString();
-        const newSession = {
-            id: uuidv4(),
+        const newSession = await chatSessionModel.create({
             participantIds: [req.userId, participantId],
             propertyId,
             interestId,
-            createdAt: now,
-            lastMessageAt: now,
-            updatedAt: now,
-        };
-        chatSessionModel.create(newSession);
+        });
         // Send initial message if provided
         if (initialMessage) {
-            const sender = userModel.findById(req.userId);
-            const message = {
-                id: uuidv4(),
+            const sender = await userModel.findById(req.userId);
+            await chatMessageModel.create({
                 sessionId: newSession.id,
                 senderId: req.userId,
                 senderName: sender?.name || 'Unknown',
                 senderAvatar: sender?.avatar,
                 message: initialMessage,
-                timestamp: now,
                 type: 'text',
-                read: false,
-            };
-            chatMessageModel.create(message);
+            });
         }
         res.status(201).json({
             success: true,

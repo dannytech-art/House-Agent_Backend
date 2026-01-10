@@ -1,7 +1,9 @@
+// @ts-nocheck
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { creditBundleModel, transactionModel } from '../models/Credit.js';
 import { userModel } from '../models/User.js';
+import paystackService from '../services/paystack.service.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 const router = Router();
 // Get available credit bundles
@@ -209,6 +211,109 @@ router.post('/bundles', authenticate, requireRole('admin'), async (req, res) => 
             success: false,
             error: 'Failed to create bundle',
         });
+    }
+});
+// Verify payment with Paystack and apply credits (frontend-friendly endpoint)
+router.post('/verify-payment', async (req, res) => {
+    try {
+        const { reference } = req.body;
+        if (!reference) {
+            return res.status(400).json({ success: false, error: 'Payment reference is required' });
+        }
+        // Call Paystack verify
+        const paystackResp = await paystackService.verifyPayment(reference);
+        if (!paystackResp || !paystackResp.status || paystackResp.data?.status !== 'success') {
+            return res.json({
+                success: false,
+                status: paystackResp?.data?.status || 'failed',
+                message: paystackResp?.message || paystackResp?.data?.gateway_response || 'Payment not successful',
+            });
+        }
+        // Find local transaction by multiple possible identifiers (our reference, transaction id, or Paystack reference)
+        const transaction = transactionModel.findOne(tx => {
+            const meta = tx.metadata || {};
+            return (meta.reference === reference ||
+                meta.transactionId === reference ||
+                meta.paystackReference === reference ||
+                tx.id === reference ||
+                tx.reference === reference ||
+                tx.paystackReference === reference);
+        });
+        if (!transaction) {
+            return res.status(404).json({ success: false, error: 'Transaction not found in database' });
+        }
+        // If pending, apply credits and mark completed
+        if (transaction.status === 'pending') {
+            const now = new Date().toISOString();
+            const creditsToAdd = Number(transaction.credits || 0);
+            // Update transaction
+            transactionModel.update(transaction.id, {
+                status: 'completed',
+                metadata: { ...(transaction.metadata || {}), paystackId: paystackResp.data?.id, paystackReference: paystackResp.data?.reference, paidAt: paystackResp.data?.paid_at, applied: true },
+            });
+            // Update user credits
+            const user = userModel.findById(transaction.userId);
+            if (!user) {
+                return res.status(404).json({ success: false, error: 'User not found' });
+            }
+            const previous = Number(user.credits || 0);
+            const newBalance = previous + creditsToAdd;
+            userModel.update(transaction.userId, { credits: newBalance, updatedAt: now });
+            return res.json({
+                success: true,
+                status: 'completed',
+                credits: creditsToAdd,
+                newBalance,
+                message: 'Payment verified successfully',
+            });
+        }
+        // If already processed, return current state
+        const user = userModel.findById(transaction.userId);
+        return res.json({
+            success: true,
+            status: transaction.status,
+            credits: transaction.credits,
+            newBalance: user?.credits || 0,
+            message: 'Transaction already processed',
+        });
+    }
+    catch (error) {
+        console.error('Verify-payment error:', error);
+        if (error.response?.status === 404) {
+            return res.status(404).json({ success: false, error: 'Transaction not found on Paystack' });
+        }
+        return res.status(500).json({ success: false, error: 'Failed to verify payment' });
+    }
+});
+// Quick status check for frontend: GET /api/credits/verify/:reference
+router.get('/verify/:reference', async (req, res) => {
+    try {
+        const { reference } = req.params;
+        if (!reference) {
+            return res.status(400).json({ success: false, error: 'Reference is required' });
+        }
+        const transaction = transactionModel.findOne(tx => {
+            const meta = tx.metadata || {};
+            return (meta.reference === reference ||
+                meta.transactionId === reference ||
+                meta.paystackReference === reference ||
+                tx.id === reference ||
+                tx.reference === reference ||
+                tx.paystackReference === reference);
+        });
+        if (!transaction) {
+            return res.status(404).json({ success: false, error: 'Transaction not found' });
+        }
+        return res.json({
+            success: true,
+            status: transaction.status,
+            credits: transaction.credits,
+            message: `Transaction is ${transaction.status}`,
+        });
+    }
+    catch (error) {
+        console.error('Verify status error:', error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 export default router;

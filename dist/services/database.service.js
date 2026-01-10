@@ -1,30 +1,76 @@
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config/index.js';
-// Ensure data directory exists
+// Check if Supabase is configured (skip JSON file loading if so)
+const isSupabaseConfigured = () => {
+    return !!(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY));
+};
+// Ensure data directory exists (only if not using Supabase)
 const ensureDataDir = () => {
-    if (!fs.existsSync(config.dataDir)) {
-        fs.mkdirSync(config.dataDir, { recursive: true });
+    if (isSupabaseConfigured())
+        return;
+    try {
+        if (!fs.existsSync(config.dataDir)) {
+            fs.mkdirSync(config.dataDir, { recursive: true });
+        }
+    }
+    catch (error) {
+        console.warn('⚠️ Could not create data directory, using memory-only storage');
     }
 };
-// Generic database service for JSON file storage
+// Check if we can write to filesystem
+const canWriteToFilesystem = () => {
+    if (isSupabaseConfigured())
+        return false;
+    try {
+        const testFile = path.join(config.dataDir, '.write-test');
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+        return true;
+    }
+    catch {
+        return false;
+    }
+};
+// Generic database service for JSON file storage (legacy - use Supabase models instead)
 class DatabaseService {
     filePath;
     data = [];
+    useFilesystem = false;
+    fileName;
+    usingSupabase = false;
     constructor(fileName) {
+        this.fileName = fileName;
+        this.usingSupabase = isSupabaseConfigured();
+        if (this.usingSupabase) {
+            // Skip file loading when using Supabase
+            this.useFilesystem = false;
+            this.filePath = '';
+            this.data = [];
+            return;
+        }
         ensureDataDir();
         this.filePath = path.join(config.dataDir, `${fileName}.json`);
+        this.useFilesystem = canWriteToFilesystem();
+        if (!this.useFilesystem) {
+            console.warn(`⚠️ [${fileName}] Filesystem not writable, using memory-only storage`);
+        }
         this.load();
     }
     load() {
+        if (this.usingSupabase)
+            return;
         try {
-            if (fs.existsSync(this.filePath)) {
+            if (this.useFilesystem && fs.existsSync(this.filePath)) {
                 const content = fs.readFileSync(this.filePath, 'utf-8');
                 this.data = JSON.parse(content);
+                console.log(`📂 [${this.fileName}] Loaded ${this.data.length} records from file`);
             }
             else {
                 this.data = [];
-                this.save();
+                if (this.useFilesystem) {
+                    this.save();
+                }
             }
         }
         catch (error) {
@@ -33,11 +79,19 @@ class DatabaseService {
         }
     }
     save() {
+        if (this.usingSupabase || !this.useFilesystem) {
+            return;
+        }
         try {
             fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2));
         }
         catch (error) {
             console.error(`Error saving ${this.filePath}:`, error);
+        }
+    }
+    reload() {
+        if (!this.usingSupabase) {
+            this.load();
         }
     }
     findAll() {

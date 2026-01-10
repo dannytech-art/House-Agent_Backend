@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { inspectionModel } from '../models/Inspection.js';
@@ -41,7 +42,7 @@ router.post('/', authenticate, async (req, res) => {
                 error: 'Inspection date must be in the future',
             });
         }
-        const interest = interestModel.findById(interestId);
+        const interest = await interestModel.findById(interestId);
         if (!interest) {
             return res.status(404).json({
                 success: false,
@@ -56,7 +57,7 @@ router.post('/', authenticate, async (req, res) => {
             });
         }
         // Check if inspection already exists
-        const existingInspection = inspectionModel.findByInterest(interestId);
+        const existingInspection = await inspectionModel.findByInterest(interestId);
         if (existingInspection) {
             return res.status(400).json({
                 success: false,
@@ -64,14 +65,14 @@ router.post('/', authenticate, async (req, res) => {
                 data: existingInspection,
             });
         }
-        const property = propertyModel.findById(interest.propertyId);
+        const property = await propertyModel.findById(interest.propertyId);
         if (!property) {
             return res.status(404).json({
                 success: false,
                 error: 'Property not found',
             });
         }
-        const seeker = userModel.findById(req.userId);
+        const seeker = await userModel.findById(req.userId);
         if (!seeker) {
             return res.status(404).json({
                 success: false,
@@ -89,19 +90,19 @@ router.post('/', authenticate, async (req, res) => {
             agentId: property.agentId,
             scheduledDate,
             scheduledTime,
-            status: 'pending',
+            status: 'scheduled',
             notes: notes || '',
             createdAt: now,
             updatedAt: now,
         };
-        inspectionModel.create(newInspection);
+        await inspectionModel.create(newInspection);
         // Update interest status
-        interestModel.update(interestId, {
+        await interestModel.update(interestId, {
             status: 'viewing-scheduled',
             updatedAt: now,
         });
         // Notify the agent
-        sendNotification({
+        await sendNotification({
             userId: property.agentId,
             title: 'Inspection Scheduled! 📅',
             message: `${seeker.name} has scheduled an inspection for "${property.title}" on ${scheduledDate} at ${scheduledTime}`,
@@ -130,10 +131,10 @@ router.post('/', authenticate, async (req, res) => {
 // Get my inspections (as seeker)
 router.get('/my', authenticate, async (req, res) => {
     try {
-        const inspections = inspectionModel.findBySeeker(req.userId);
+        const inspections = await inspectionModel.findBySeeker(req.userId);
         // Enrich with property info
-        const enrichedInspections = inspections.map(inspection => {
-            const property = propertyModel.findById(inspection.propertyId);
+        const enrichedInspections = await Promise.all(inspections.map(async (inspection) => {
+            const property = await propertyModel.findById(inspection.propertyId);
             return {
                 ...inspection,
                 property: property ? {
@@ -144,7 +145,7 @@ router.get('/my', authenticate, async (req, res) => {
                     images: property.images,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInspections,
@@ -164,18 +165,18 @@ router.get('/agent', authenticate, requireRole('agent'), async (req, res) => {
         const { status, upcoming } = req.query;
         let inspections;
         if (upcoming === 'true') {
-            inspections = inspectionModel.findUpcoming(req.userId);
+            inspections = await inspectionModel.findUpcoming(req.userId);
         }
         else {
-            inspections = inspectionModel.findByAgent(req.userId);
+            inspections = await inspectionModel.findByAgent(req.userId);
         }
         if (status) {
-            inspections = inspections.filter(i => i.status === status);
+            inspections = inspections.filter((i) => i.status === status);
         }
         // Enrich with property and seeker info
-        const enrichedInspections = inspections.map(inspection => {
-            const property = propertyModel.findById(inspection.propertyId);
-            const seeker = userModel.findById(inspection.seekerId);
+        const enrichedInspections = await Promise.all(inspections.map(async (inspection) => {
+            const property = await propertyModel.findById(inspection.propertyId);
+            const seeker = await userModel.findById(inspection.seekerId);
             return {
                 ...inspection,
                 property: property ? {
@@ -192,7 +193,7 @@ router.get('/agent', authenticate, requireRole('agent'), async (req, res) => {
                     avatar: seeker.avatar,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInspections,
@@ -210,7 +211,7 @@ router.get('/agent', authenticate, requireRole('agent'), async (req, res) => {
 router.get('/property/:propertyId', authenticate, async (req, res) => {
     try {
         const { propertyId } = req.params;
-        const property = propertyModel.findById(propertyId);
+        const property = await propertyModel.findById(propertyId);
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -224,10 +225,10 @@ router.get('/property/:propertyId', authenticate, async (req, res) => {
                 error: 'Not authorized to view inspections for this property',
             });
         }
-        const inspections = inspectionModel.findByProperty(propertyId);
+        const inspections = await inspectionModel.findByProperty(propertyId);
         // Enrich with seeker info
-        const enrichedInspections = inspections.map(inspection => {
-            const seeker = userModel.findById(inspection.seekerId);
+        const enrichedInspections = await Promise.all(inspections.map(async (inspection) => {
+            const seeker = await userModel.findById(inspection.seekerId);
             return {
                 ...inspection,
                 seeker: seeker ? {
@@ -237,7 +238,7 @@ router.get('/property/:propertyId', authenticate, async (req, res) => {
                     avatar: seeker.avatar,
                 } : null,
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedInspections,
@@ -256,14 +257,14 @@ router.put('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const { scheduledDate, scheduledTime, status, notes, agentNotes } = req.body;
-        const inspection = inspectionModel.findById(id);
+        const inspection = await inspectionModel.findById(id);
         if (!inspection) {
             return res.status(404).json({
                 success: false,
                 error: 'Inspection not found',
             });
         }
-        const property = propertyModel.findById(inspection.propertyId);
+        const property = await propertyModel.findById(inspection.propertyId);
         const isAgent = property && property.agentId === req.userId;
         const isSeeker = inspection.seekerId === req.userId;
         if (!isAgent && !isSeeker && req.userRole !== 'admin') {
@@ -283,7 +284,7 @@ router.put('/:id', authenticate, async (req, res) => {
             if (notes)
                 updates.notes = notes;
             // Notify agent about reschedule
-            sendNotification({
+            await sendNotification({
                 userId: inspection.agentId,
                 title: 'Inspection Rescheduled 📅',
                 message: `${inspection.seekerName} has rescheduled the inspection to ${scheduledDate} at ${scheduledTime}`,
@@ -310,7 +311,7 @@ router.put('/:id', authenticate, async (req, res) => {
                     notifMessage = `Your inspection for "${property?.title}" has been marked as completed.`;
                 }
                 if (notifMessage) {
-                    sendNotification({
+                    await sendNotification({
                         userId: inspection.seekerId,
                         title: `Inspection ${status.charAt(0).toUpperCase() + status.slice(1)}`,
                         message: notifMessage,
@@ -325,7 +326,7 @@ router.put('/:id', authenticate, async (req, res) => {
             if (agentNotes)
                 updates.agentNotes = agentNotes;
         }
-        const updatedInspection = inspectionModel.update(id, updates);
+        const updatedInspection = await inspectionModel.update(id, updates);
         res.json({
             success: true,
             data: updatedInspection,
@@ -343,14 +344,14 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
-        const inspection = inspectionModel.findById(id);
+        const inspection = await inspectionModel.findById(id);
         if (!inspection) {
             return res.status(404).json({
                 success: false,
                 error: 'Inspection not found',
             });
         }
-        const property = propertyModel.findById(inspection.propertyId);
+        const property = await propertyModel.findById(inspection.propertyId);
         const isAgent = property && property.agentId === req.userId;
         const isSeeker = inspection.seekerId === req.userId;
         if (!isAgent && !isSeeker && req.userRole !== 'admin') {
@@ -360,19 +361,19 @@ router.delete('/:id', authenticate, async (req, res) => {
             });
         }
         // Update status to cancelled instead of deleting
-        inspectionModel.update(id, {
+        await inspectionModel.update(id, {
             status: 'cancelled',
             updatedAt: new Date().toISOString(),
         });
         // Update interest status back to contacted
-        interestModel.update(inspection.interestId, {
+        await interestModel.update(inspection.interestId, {
             status: 'contacted',
             updatedAt: new Date().toISOString(),
         });
         // Notify the other party
         const notifyUserId = isSeeker ? inspection.agentId : inspection.seekerId;
         const cancelledBy = isSeeker ? inspection.seekerName : 'The agent';
-        sendNotification({
+        await sendNotification({
             userId: notifyUserId,
             title: 'Inspection Cancelled',
             message: `${cancelledBy} has cancelled the inspection for "${property?.title}"`,

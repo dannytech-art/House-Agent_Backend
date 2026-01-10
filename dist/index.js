@@ -1,8 +1,13 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
+import passport from 'passport';
 import { config } from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { initializeSocketServer } from './services/socket.service.js';
+import { isSupabaseConfigured, testConnection } from './services/supabase.service.js';
+import { isEmailServiceConfigured } from './services/email.service.js';
 // Import routes
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -21,7 +26,11 @@ import ciuRoutes from './routes/ciu.routes.js';
 import propertyRequestRoutes from './routes/property-request.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import inspectionRoutes from './routes/inspection.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 const app = express();
+const httpServer = createServer(app);
+// Initialize Socket.IO
+const io = initializeSocketServer(httpServer);
 // Universal CORS - Allow all origins
 app.use(cors({
     origin: '*',
@@ -29,17 +38,22 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: false,
 }));
+// Special raw body parser for payment webhooks (must come before JSON parser)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 // Request logging
 app.use(requestLogger);
+// Initialize Passport for Google OAuth
+app.use(passport.initialize());
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
         environment: config.env,
+        socketIO: 'enabled',
     });
 });
 // API Routes
@@ -60,6 +74,7 @@ app.use('/api/ciu', ciuRoutes);
 app.use('/api/property-requests', propertyRequestRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/inspections', inspectionRoutes);
+app.use('/api/payments', paymentRoutes);
 // 404 handler
 app.use((_req, res) => {
     res.status(404).json({
@@ -71,11 +86,27 @@ app.use((_req, res) => {
 app.use(errorHandler);
 // Start server
 const PORT = config.port;
-app.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
     console.log(`🚀 Vilanow API Server running on port ${PORT}`);
     console.log(`📍 Environment: ${config.env}`);
     console.log(`🌐 CORS: Universal (all origins allowed)`);
     console.log(`📝 API Base URL: http://localhost:${PORT}/api`);
+    console.log(`🔌 Socket.IO: Enabled (ws://localhost:${PORT})`);
+    console.log(`💳 Paystack: ${config.paystack.secretKey ? '✅ Configured' : '❌ Not configured (add PAYSTACK_SECRET_KEY to .env)'}`);
+    console.log(`☁️ Cloudinary: ${config.cloudinary.cloudName ? '✅ Configured' : '❌ Not configured'}`);
+    // Test Supabase connection
+    if (isSupabaseConfigured()) {
+        console.log(`🗄️ Supabase: ✅ Configured`);
+        const connected = await testConnection();
+        console.log(`   Database: ${connected ? '✅ Connected' : '❌ Connection failed'}`);
+    }
+    else {
+        console.log(`🗄️ Supabase: ❌ Not configured (add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env)`);
+    }
+    // Email & OAuth status
+    console.log(`📧 Brevo Email: ${isEmailServiceConfigured() ? '✅ Configured' : '❌ Not configured (add BREVO_API_KEY to .env)'}`);
+    console.log(`🔐 Google OAuth: ${config.google.clientId ? '✅ Configured' : '❌ Not configured (add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env)'}`);
 });
+export { io };
 export default app;
 //# sourceMappingURL=index.js.map

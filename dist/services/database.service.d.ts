@@ -3,9 +3,13 @@ declare class DatabaseService<T extends {
 }> {
     private filePath;
     private data;
+    private useFilesystem;
+    private fileName;
+    private usingSupabase;
     constructor(fileName: string);
     private load;
     private save;
+    reload(): void;
     findAll(): T[];
     findById(id: string): T | undefined;
     findOne(predicate: (item: T) => boolean): T | undefined;

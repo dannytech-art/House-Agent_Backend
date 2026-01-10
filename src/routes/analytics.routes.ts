@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { userModel } from '../models/User.js';

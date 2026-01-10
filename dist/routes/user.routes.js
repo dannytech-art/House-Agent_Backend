@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { userModel } from '../models/User.js';

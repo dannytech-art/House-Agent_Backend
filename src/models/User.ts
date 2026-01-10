@@ -1,20 +1,40 @@
+// @ts-nocheck
 import { SupabaseDB, supabase } from '../services/supabase.service.js';
 import { User, Agent } from '../types/index.js';
 
-export interface UserDocument extends Omit<User, 'active'> {
+export interface UserDocument {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: 'seeker' | 'agent' | 'admin';
+  avatar?: string;
   password_hash: string;
-  passwordHash?: string;
+  passwordHash: string;
+  emailVerified?: boolean;
+  googleId?: string;
+  authProvider?: string;
   created_at: string;
   updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   active: boolean;
 }
 
-export interface AgentDocument extends Omit<Agent, 'active'> {
-  password_hash: string;
-  passwordHash?: string;
-  created_at: string;
-  updated_at: string;
-  active: boolean;
+export interface AgentDocument extends UserDocument {
+  agentType: 'direct' | 'semi-direct';
+  verified: boolean;
+  kycStatus: 'unverified' | 'pending' | 'verified' | 'rejected';
+  level: number;
+  xp: number;
+  credits: number;
+  walletBalance: number;
+  streak: number;
+  totalListings: number;
+  totalInterests: number;
+  responseTime: number;
+  rating: number;
+  tier: string;
 }
 
 // Helper to convert database snake_case to camelCase

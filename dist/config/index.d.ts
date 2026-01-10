@@ -18,5 +18,21 @@ export declare const config: {
         apiKey: string;
         apiSecret: string;
     };
+    supabase: {
+        url: string;
+        anonKey: string;
+        serviceKey: string;
+    };
+    brevo: {
+        apiKey: string;
+        senderEmail: string;
+        senderName: string;
+    };
+    google: {
+        clientId: string;
+        clientSecret: string;
+        callbackUrl: string;
+    };
+    frontendUrl: string;
 };
 //# sourceMappingURL=index.d.ts.map

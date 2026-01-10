@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { propertyModel } from '../models/Property.js';
 import { userModel } from '../models/User.js';
 import { interestModel } from '../models/Interest.js';
@@ -32,7 +31,7 @@ router.get('/', optionalAuth, async (req, res) => {
         else {
             filters.status = 'available';
         }
-        let properties = propertyModel.search(filters);
+        const properties = await propertyModel.search(filters);
         // Pagination
         const startIndex = (Number(page) - 1) * Number(limit);
         const endIndex = startIndex + Number(limit);
@@ -59,10 +58,10 @@ router.get('/', optionalAuth, async (req, res) => {
 // Get my properties (for agents) with interest counts - MUST come before /:id
 router.get('/my/listings', authenticate, requireRole('agent'), async (req, res) => {
     try {
-        const properties = propertyModel.findByAgent(req.userId);
+        const properties = await propertyModel.findByAgent(req.userId);
         // Enrich with interest counts
-        const enrichedProperties = properties.map(property => {
-            const interests = interestModel.findByProperty(property.id);
+        const enrichedProperties = await Promise.all(properties.map(async (property) => {
+            const interests = await interestModel.findByProperty(property.id);
             const unlockedInterests = interests.filter(i => i.unlocked);
             const pendingInterests = interests.filter(i => !i.unlocked);
             return {
@@ -73,7 +72,7 @@ router.get('/my/listings', authenticate, requireRole('agent'), async (req, res) 
                     pending: pendingInterests.length,
                 },
             };
-        });
+        }));
         res.json({
             success: true,
             data: enrichedProperties,
@@ -90,8 +89,9 @@ router.get('/my/listings', authenticate, requireRole('agent'), async (req, res) 
 // Get agent statistics - MUST come before /:id
 router.get('/my/stats', authenticate, requireRole('agent'), async (req, res) => {
     try {
-        const properties = propertyModel.findByAgent(req.userId);
-        const allInterests = properties.flatMap(p => interestModel.findByProperty(p.id));
+        const properties = await propertyModel.findByAgent(req.userId);
+        // Get all interests for all properties
+        const allInterests = await Promise.all(properties.map(p => interestModel.findByProperty(p.id))).then(results => results.flat());
         const stats = {
             totalListings: properties.length,
             availableListings: properties.filter(p => p.status === 'available').length,
@@ -119,7 +119,7 @@ router.get('/my/stats', authenticate, requireRole('agent'), async (req, res) => 
 router.get('/:id', optionalAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const property = propertyModel.findById(id);
+        const property = await propertyModel.findById(id);
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -127,11 +127,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
             });
         }
         // Get agent info
-        const agent = userModel.findById(property.agentId);
+        const agent = await userModel.findById(property.agentId);
         // Check if current user has already expressed interest
         let userInterest = null;
         if (req.userId) {
-            const existingInterest = interestModel.findOne(i => i.propertyId === id && i.seekerId === req.userId);
+            const existingInterest = await interestModel.checkExistingInterest(id, req.userId);
             if (existingInterest) {
                 userInterest = {
                     id: existingInterest.id,
@@ -165,11 +165,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
     }
 });
 // Create property (agents only)
-// Supports form fields: location, type, agentType, title, price, bedrooms, bathrooms, description, amenities, images, videos
 router.post('/', authenticate, requireRole('agent', 'admin'), async (req, res) => {
     try {
-        const { title, type, price, location, area, bedrooms, bathrooms, images, videos, amenities, description, featured, agentType: requestAgentType // Allow overriding agent type per listing (direct/semi-direct)
-         } = req.body;
+        const { title, type, price, location, area, bedrooms, bathrooms, images, videos, amenities, description, featured, agentType: requestAgentType } = req.body;
         // Validate required fields
         if (!title || !type || !price || !location) {
             return res.status(400).json({
@@ -192,7 +190,7 @@ router.post('/', authenticate, requireRole('agent', 'admin'), async (req, res) =
                 error: 'Price must be a positive number',
             });
         }
-        const agent = userModel.findById(req.userId);
+        const agent = await userModel.findById(req.userId);
         if (!agent) {
             return res.status(404).json({
                 success: false,
@@ -208,14 +206,12 @@ router.post('/', authenticate, requireRole('agent', 'admin'), async (req, res) =
         const listingAgentType = requestAgentType === 'direct' || requestAgentType === 'semi-direct'
             ? requestAgentType
             : agent.agentType || 'semi-direct';
-        const now = new Date().toISOString();
-        const newProperty = {
-            id: uuidv4(),
+        const newProperty = await propertyModel.create({
             title,
             type,
             price: Number(price),
             location,
-            area: area || location, // Use location as area if not provided
+            area: area || location,
             bedrooms: bedrooms ? Number(bedrooms) : undefined,
             bathrooms: bathrooms ? Number(bathrooms) : undefined,
             images: images || [],
@@ -226,22 +222,17 @@ router.post('/', authenticate, requireRole('agent', 'admin'), async (req, res) =
             agentType: listingAgentType,
             agentName: agent.name,
             agentVerified: agent.verified || false,
-            postedAt: now,
             featured: featured || false,
             status: 'available',
-            createdAt: now,
-            updatedAt: now,
-        };
-        propertyModel.create(newProperty);
+        });
         // Update agent's total listings
         if (agent.role === 'agent') {
-            userModel.update(agent.id, {
+            await userModel.update(agent.id, {
                 totalListings: (agent.totalListings || 0) + 1,
-                updatedAt: now,
             });
         }
         // Send notification to agent that property was listed
-        notifyPropertyListed({
+        await notifyPropertyListed({
             agentId: req.userId,
             propertyId: newProperty.id,
             propertyTitle: newProperty.title,
@@ -265,7 +256,7 @@ router.put('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        const property = propertyModel.findById(id);
+        const property = await propertyModel.findById(id);
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -283,8 +274,7 @@ router.put('/:id', authenticate, async (req, res) => {
         delete updates.id;
         delete updates.agentId;
         delete updates.createdAt;
-        updates.updatedAt = new Date().toISOString();
-        const updatedProperty = propertyModel.update(id, updates);
+        const updatedProperty = await propertyModel.update(id, updates);
         res.json({
             success: true,
             data: updatedProperty,
@@ -302,7 +292,7 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
-        const property = propertyModel.findById(id);
+        const property = await propertyModel.findById(id);
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -316,13 +306,12 @@ router.delete('/:id', authenticate, async (req, res) => {
                 error: 'Not authorized to delete this property',
             });
         }
-        propertyModel.delete(id);
+        await propertyModel.delete(id);
         // Update agent's total listings
-        const agent = userModel.findById(property.agentId);
+        const agent = await userModel.findById(property.agentId);
         if (agent && agent.role === 'agent') {
-            userModel.update(agent.id, {
+            await userModel.update(agent.id, {
                 totalListings: Math.max(0, (agent.totalListings || 1) - 1),
-                updatedAt: new Date().toISOString(),
             });
         }
         res.json({

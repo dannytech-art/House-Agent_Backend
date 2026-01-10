@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt, { SignOptions } from 'jsonwebtoken'; // ✅ added SignOptions
-import { v4 as uuidv4 } from 'uuid';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { userModel, AgentDocument, UserDocument } from '../models/User.js';
 import { sessionModel } from '../models/Session.js';
@@ -24,7 +23,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Check if email already exists
-    const existingUser = userModel.findByEmail(email);
+    const existingUser = await userModel.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -36,54 +35,28 @@ router.post('/register', async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const now = new Date().toISOString();
 
-    let newUser: UserDocument | AgentDocument;
+    // Create user in database
+    const userData: any = {
+      email: email.toLowerCase(),
+      password_hash: passwordHash,
+      name,
+      phone,
+      role,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+    };
 
     if (role === 'agent') {
-      newUser = {
-        id: uuidv4(),
-        email,
-        name,
-        phone,
-        role: 'agent',
-        passwordHash,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-        agentType: agentType || 'semi-direct',
-        verified: false,
-        kycStatus: 'unverified',
-        level: 1,
-        xp: 0,
-        credits: 10,
-        walletBalance: 0,
-        streak: 0,
-        totalListings: 0,
-        totalInterests: 0,
-        responseTime: 0,
-        rating: 0,
-        joinedDate: now,
-        tier: 'street-scout',
-        badges: [],
-        createdAt: now,
-        updatedAt: now,
-        active: true,
-      } as AgentDocument;
-    } else {
-      newUser = {
-        id: uuidv4(),
-        email,
-        name,
-        phone,
-        role,
-        passwordHash,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-        createdAt: now,
-        updatedAt: now,
-        active: true,
-      } as UserDocument;
+      userData.agent_type = agentType || 'semi-direct';
+      userData.verified = false;
+      userData.level = 1;
+      userData.xp = 0;
+      userData.credits = 10;
+      userData.tier = 'street-scout';
     }
 
-    userModel.create(newUser);
+    const newUser = await userModel.create(userData);
 
-    // ✅ Create JWT token properly for TypeScript
+    // Create JWT token
     const secret = config.jwt.secret as string;
     const options: SignOptions = { expiresIn: config.jwt.expiresIn as unknown as SignOptions['expiresIn'] };
 
@@ -97,8 +70,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    sessionModel.create({
-      id: uuidv4(),
+    await sessionModel.create({
       userId: newUser.id,
       token,
       expiresAt: expiresAt.toISOString(),
@@ -107,7 +79,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     // Remove password hash from response
-    const { passwordHash: _, ...userResponse } = newUser;
+    const { passwordHash: _, password_hash: __, ...userResponse } = newUser as any;
 
     res.status(201).json({
       success: true,
@@ -137,7 +109,7 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    const user = userModel.findByEmail(email);
+    const user = await userModel.findByEmail(email);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -145,14 +117,14 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    if (!user.active) {
+    if (user.active === false) {
       return res.status(401).json({
         success: false,
         error: 'Account is deactivated',
       });
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash || (user as any).password_hash);
     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
@@ -160,7 +132,7 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // ✅ Create JWT token properly
+    // Create JWT token
     const secret = config.jwt.secret as string;
     const options: SignOptions = { expiresIn: config.jwt.expiresIn as unknown as SignOptions['expiresIn'] };
 
@@ -175,8 +147,7 @@ router.post('/login', async (req: Request, res: Response) => {
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     // Create session
-    sessionModel.create({
-      id: uuidv4(),
+    await sessionModel.create({
       userId: user.id,
       token,
       expiresAt: expiresAt.toISOString(),
@@ -185,7 +156,7 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     // Remove password hash from response
-    const { passwordHash: _, ...userResponse } = user;
+    const { passwordHash: _, password_hash: __, ...userResponse } = user as any;
 
     res.json({
       success: true,
@@ -206,7 +177,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // Get current user
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const user = userModel.findById(req.userId!);
+    const user = await userModel.findById(req.userId!);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -214,7 +185,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { passwordHash: _, ...userResponse } = user;
+    const { passwordHash: _, password_hash: __, ...userResponse } = user as any;
 
     res.json({
       success: true,
@@ -236,9 +207,9 @@ router.post('/logout', authenticate, async (req: AuthRequest, res: Response) => 
     const token = authHeader?.split(' ')[1];
 
     if (token) {
-      const session = sessionModel.findByToken(token);
+      const session = await sessionModel.findByToken(token);
       if (session) {
-        sessionModel.delete(session.id);
+        await sessionModel.delete(session.id);
       }
     }
 

@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.90.1",
     "@types/multer": "^2.0.0",
     "@types/socket.io": "^3.0.1",
     "bcryptjs": "^2.4.3",

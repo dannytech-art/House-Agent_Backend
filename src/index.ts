@@ -5,6 +5,7 @@ import { config } from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { initializeSocketServer } from './services/socket.service.js';
+import { isSupabaseConfigured, testConnection } from './services/supabase.service.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -93,7 +94,7 @@ app.use(errorHandler);
 
 // Start server
 const PORT = config.port;
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`🚀 Vilanow API Server running on port ${PORT}`);
   console.log(`📍 Environment: ${config.env}`);
   console.log(`🌐 CORS: Universal (all origins allowed)`);
@@ -101,6 +102,15 @@ httpServer.listen(PORT, () => {
   console.log(`🔌 Socket.IO: Enabled (ws://localhost:${PORT})`);
   console.log(`💳 Paystack: ${config.paystack.secretKey ? '✅ Configured' : '❌ Not configured (add PAYSTACK_SECRET_KEY to .env)'}`);
   console.log(`☁️ Cloudinary: ${config.cloudinary.cloudName ? '✅ Configured' : '❌ Not configured'}`);
+  
+  // Test Supabase connection
+  if (isSupabaseConfigured()) {
+    console.log(`🗄️ Supabase: ✅ Configured`);
+    const connected = await testConnection();
+    console.log(`   Database: ${connected ? '✅ Connected' : '❌ Connection failed'}`);
+  } else {
+    console.log(`🗄️ Supabase: ❌ Not configured (add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env)`);
+  }
 });
 
 export { io };

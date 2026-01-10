@@ -1,5 +1,4 @@
 import { Router, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { chatSessionModel, chatMessageModel } from '../models/Chat.js';
 import { userModel } from '../models/User.js';
 import { propertyModel } from '../models/Property.js';
@@ -12,31 +11,31 @@ const router = Router();
 // Get all chat sessions for user
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const sessions = chatSessionModel.findByParticipant(req.userId!);
-    const currentUser = userModel.findById(req.userId!);
+    const sessions = await chatSessionModel.findByParticipant(req.userId!);
+    const currentUser = await userModel.findById(req.userId!);
     const isAgent = currentUser?.role === 'agent';
 
     // Enrich sessions with last message, participant info, and unlock status
-    const enrichedSessions = sessions.map(session => {
-      const messages = chatMessageModel.findBySession(session.id);
+    const enrichedSessions = await Promise.all(sessions.map(async (session) => {
+      const messages = await chatMessageModel.findBySession(session.id);
       const lastMessage = messages[messages.length - 1];
       const unreadCount = messages.filter(m => !m.read && m.senderId !== req.userId).length;
 
       const otherParticipantId = session.participantIds.find(id => id !== req.userId);
-      const otherParticipant = otherParticipantId ? userModel.findById(otherParticipantId) : null;
+      const otherParticipant = otherParticipantId ? await userModel.findById(otherParticipantId) : null;
 
       // Check if interest is unlocked (for agents)
       let isUnlocked = true;
       let interest = null;
       if (session.interestId) {
-        interest = interestModel.findById(session.interestId);
+        interest = await interestModel.findById(session.interestId);
         if (interest && isAgent) {
           isUnlocked = interest.unlocked;
         }
       }
 
       // Get property info
-      const property = session.propertyId ? propertyModel.findById(session.propertyId) : null;
+      const property = session.propertyId ? await propertyModel.findById(session.propertyId) : null;
 
       return {
         ...session,
@@ -57,7 +56,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
           role: otherParticipant.role,
         } : null,
       };
-    });
+    }));
 
     res.json({
       success: true,
@@ -77,7 +76,7 @@ router.get('/:sessionId/messages', authenticate, async (req: AuthRequest, res: R
   try {
     const { sessionId } = req.params;
 
-    const session = chatSessionModel.findById(sessionId);
+    const session = await chatSessionModel.findById(sessionId);
     if (!session) {
       return res.status(404).json({
         success: false,
@@ -92,14 +91,14 @@ router.get('/:sessionId/messages', authenticate, async (req: AuthRequest, res: R
       });
     }
 
-    const messages = chatMessageModel.findBySession(sessionId);
+    const messages = await chatMessageModel.findBySession(sessionId);
 
     // Mark messages as read
-    messages.forEach(msg => {
+    for (const msg of messages) {
       if (!msg.read && msg.senderId !== req.userId) {
-        chatMessageModel.update(msg.id, { read: true });
+        await chatMessageModel.update(msg.id, { read: true });
       }
-    });
+    }
 
     res.json({
       success: true,
@@ -127,7 +126,7 @@ router.post('/:sessionId/messages', authenticate, async (req: AuthRequest, res: 
       });
     }
 
-    const session = chatSessionModel.findById(sessionId);
+    const session = await chatSessionModel.findById(sessionId);
     if (!session) {
       return res.status(404).json({
         success: false,
@@ -142,7 +141,7 @@ router.post('/:sessionId/messages', authenticate, async (req: AuthRequest, res: 
       });
     }
 
-    const sender = userModel.findById(req.userId!);
+    const sender = await userModel.findById(req.userId!);
     if (!sender) {
       return res.status(404).json({
         success: false,
@@ -152,7 +151,7 @@ router.post('/:sessionId/messages', authenticate, async (req: AuthRequest, res: 
 
     // Check if agent needs to unlock the interest first
     if (sender.role === 'agent' && session.interestId) {
-      const interest = interestModel.findById(session.interestId);
+      const interest = await interestModel.findById(session.interestId);
       if (interest && !interest.unlocked) {
         // Get agent's credit balance
         const agent = sender as any;
@@ -172,32 +171,25 @@ router.post('/:sessionId/messages', authenticate, async (req: AuthRequest, res: 
       }
     }
 
-    const now = new Date().toISOString();
-    const newMessage = {
-      id: uuidv4(),
+    const newMessage = await chatMessageModel.create({
       sessionId,
       senderId: req.userId!,
       senderName: sender.name,
       senderAvatar: sender.avatar,
       message,
-      timestamp: now,
       type,
       metadata,
-      read: false,
-    };
-
-    chatMessageModel.create(newMessage);
+    });
 
     // Update session's lastMessageAt
-    chatSessionModel.update(sessionId, {
-      lastMessageAt: now,
-      updatedAt: now,
+    await chatSessionModel.update(sessionId, {
+      lastMessageAt: new Date().toISOString(),
     });
 
     // Notify the other participant about the new message
     const recipientId = session.participantIds.find(id => id !== req.userId);
     if (recipientId) {
-      notifyNewMessage({
+      await notifyNewMessage({
         recipientId,
         senderName: sender.name,
         chatSessionId: sessionId,
@@ -230,7 +222,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const participant = userModel.findById(participantId);
+    const participant = await userModel.findById(participantId);
     if (!participant) {
       return res.status(404).json({
         success: false,
@@ -239,8 +231,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Check if session already exists between these users
-    const existingSession = chatSessionModel.findOne(s => 
-      s.participantIds.includes(req.userId!) && 
+    const sessions = await chatSessionModel.findByParticipant(req.userId!);
+    const existingSession = sessions.find(s => 
       s.participantIds.includes(participantId) &&
       (!propertyId || s.propertyId === propertyId)
     );
@@ -252,34 +244,23 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const now = new Date().toISOString();
-    const newSession = {
-      id: uuidv4(),
+    const newSession = await chatSessionModel.create({
       participantIds: [req.userId!, participantId],
       propertyId,
       interestId,
-      createdAt: now,
-      lastMessageAt: now,
-      updatedAt: now,
-    };
-
-    chatSessionModel.create(newSession);
+    });
 
     // Send initial message if provided
     if (initialMessage) {
-      const sender = userModel.findById(req.userId!);
-      const message = {
-        id: uuidv4(),
+      const sender = await userModel.findById(req.userId!);
+      await chatMessageModel.create({
         sessionId: newSession.id,
         senderId: req.userId!,
         senderName: sender?.name || 'Unknown',
         senderAvatar: sender?.avatar,
         message: initialMessage,
-        timestamp: now,
-        type: 'text' as const,
-        read: false,
-      };
-      chatMessageModel.create(message);
+        type: 'text',
+      });
     }
 
     res.status(201).json({
@@ -296,5 +277,3 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 export default router;
-
-

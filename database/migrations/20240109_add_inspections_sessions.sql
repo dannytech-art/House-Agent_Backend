@@ -113,3 +113,4 @@ COMMENT ON TABLE inspections IS 'Property inspection schedules between seekers a
 COMMENT ON TABLE sessions IS 'User authentication sessions for JWT token tracking';
 
 
+

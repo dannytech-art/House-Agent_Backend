@@ -1,11 +1,13 @@
 import express, { Request, Response } from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
+import passport from 'passport';
 import { config } from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { initializeSocketServer } from './services/socket.service.js';
 import { isSupabaseConfigured, testConnection } from './services/supabase.service.js';
+import { isEmailServiceConfigured } from './services/email.service.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -50,6 +52,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Request logging
 app.use(requestLogger);
+
+// Initialize Passport for Google OAuth
+app.use(passport.initialize());
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -111,6 +116,10 @@ httpServer.listen(PORT, async () => {
   } else {
     console.log(`🗄️ Supabase: ❌ Not configured (add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env)`);
   }
+  
+  // Email & OAuth status
+  console.log(`📧 Brevo Email: ${isEmailServiceConfigured() ? '✅ Configured' : '❌ Not configured (add BREVO_API_KEY to .env)'}`);
+  console.log(`🔐 Google OAuth: ${config.google.clientId ? '✅ Configured' : '❌ Not configured (add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env)'}`);
 });
 
 export { io };

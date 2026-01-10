@@ -30,6 +30,9 @@ function toCamelCase(data: any): any {
     avatar: data.avatar,
     passwordHash: data.password_hash,
     verified: data.verified,
+    emailVerified: data.email_verified || false,
+    googleId: data.google_id,
+    authProvider: data.auth_provider || 'email',
     agentType: data.agent_type,
     kycStatus: data.kyc_status,
     level: data.level,
@@ -60,6 +63,12 @@ function toSnakeCase(data: any): any {
   if (data.passwordHash !== undefined) result.password_hash = data.passwordHash;
   if (data.password_hash !== undefined) result.password_hash = data.password_hash;
   if (data.verified !== undefined) result.verified = data.verified;
+  if (data.emailVerified !== undefined) result.email_verified = data.emailVerified;
+  if (data.email_verified !== undefined) result.email_verified = data.email_verified;
+  if (data.googleId !== undefined) result.google_id = data.googleId;
+  if (data.google_id !== undefined) result.google_id = data.google_id;
+  if (data.authProvider !== undefined) result.auth_provider = data.authProvider;
+  if (data.auth_provider !== undefined) result.auth_provider = data.auth_provider;
   if (data.agentType !== undefined) result.agent_type = data.agentType;
   if (data.agent_type !== undefined) result.agent_type = data.agent_type;
   if (data.kycStatus !== undefined) result.kyc_status = data.kycStatus;
@@ -146,6 +155,17 @@ class UserModel {
     
     if (error) throw error;
     return (data || []).map(toCamelCase);
+  }
+
+  async findByGoogleId(googleId: string): Promise<UserDocument | AgentDocument | null> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('google_id', googleId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? toCamelCase(data) : null;
   }
 
   // Legacy sync methods for backwards compatibility - now async

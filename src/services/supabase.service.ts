@@ -117,12 +117,20 @@ export class SupabaseDB {
   
   static async createUser(userData: {
     email: string;
-    password_hash: string;
+    password_hash?: string;
     name: string;
-    phone: string;
+    phone?: string;
     role: 'seeker' | 'agent' | 'admin';
     agent_type?: string;
     avatar?: string;
+    google_id?: string;
+    email_verified?: boolean;
+    auth_provider?: string;
+    verified?: boolean;
+    level?: number;
+    xp?: number;
+    credits?: number;
+    tier?: string;
   }) {
     const { data, error } = await supabase
       .from('users')

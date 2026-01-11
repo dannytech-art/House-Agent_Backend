@@ -93,3 +93,4 @@ $$ LANGUAGE plpgsql;
 -- Created otps table for OTP verification
 -- Added necessary indexes for performance
 
+

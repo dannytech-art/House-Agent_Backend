@@ -97,12 +97,20 @@ class UserModel {
         const dbData = toSnakeCase(userData);
         const result = await SupabaseDB.createUser({
             email: dbData.email,
-            password_hash: dbData.password_hash,
+            password_hash: dbData.password_hash || '',
             name: dbData.name,
-            phone: dbData.phone,
+            phone: dbData.phone || '',
             role: dbData.role,
             agent_type: dbData.agent_type,
-            avatar: dbData.avatar
+            avatar: dbData.avatar,
+            google_id: dbData.google_id,
+            email_verified: dbData.email_verified,
+            auth_provider: dbData.auth_provider,
+            verified: dbData.verified,
+            level: dbData.level,
+            xp: dbData.xp,
+            credits: dbData.credits,
+            tier: dbData.tier
         });
         return toCamelCase(result);
     }

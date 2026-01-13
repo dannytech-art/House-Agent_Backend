@@ -168,6 +168,9 @@ router.get('/:id', optionalAuth, async (req, res) => {
 router.post('/', authenticate, requireRole('agent', 'admin'), async (req, res) => {
     try {
         const { title, type, price, location, area, bedrooms, bathrooms, images, videos, amenities, description, featured, agentType: requestAgentType } = req.body;
+        // Debug: Log what images are being received
+        console.log('📸 Creating property with images:', JSON.stringify(images));
+        console.log('📹 Creating property with videos:', JSON.stringify(videos));
         // Validate required fields
         if (!title || !type || !price || !location) {
             return res.status(400).json({

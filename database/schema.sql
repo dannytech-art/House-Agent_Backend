@@ -103,6 +103,27 @@ CREATE INDEX idx_interests_seeker_id ON interests(seeker_id);
 CREATE INDEX idx_interests_status ON interests(status);
 CREATE INDEX idx_interests_created_at ON interests(created_at DESC);
 
+-- Inspections Table (for scheduling property viewings)
+CREATE TABLE IF NOT EXISTS inspections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+  interest_id UUID REFERENCES interests(id) ON DELETE CASCADE,
+  seeker_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  agent_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  scheduled_date TIMESTAMPTZ NOT NULL,
+  status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'confirmed', 'completed', 'cancelled', 'rescheduled')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_inspections_property_id ON inspections(property_id);
+CREATE INDEX idx_inspections_interest_id ON inspections(interest_id);
+CREATE INDEX idx_inspections_seeker_id ON inspections(seeker_id);
+CREATE INDEX idx_inspections_agent_id ON inspections(agent_id);
+CREATE INDEX idx_inspections_scheduled_date ON inspections(scheduled_date);
+CREATE INDEX idx_inspections_status ON inspections(status);
+
 -- ============================================
 -- CHAT SYSTEM
 -- ============================================

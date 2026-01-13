@@ -109,4 +109,38 @@ httpServer.listen(PORT, async () => {
 });
 export { io };
 export default app;
+// 404 handler
+app.use((_req, res) => {
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+    });
+});
+// Global error handler
+app.use(errorHandler);
+// Start server
+const PORT = config.port;
+httpServer.listen(PORT, async () => {
+    console.log(`🚀 Vilanow API Server running on port ${PORT}`);
+    console.log(`📍 Environment: ${config.env}`);
+    console.log(`🌐 CORS: Universal (all origins allowed)`);
+    console.log(`📝 API Base URL: http://localhost:${PORT}/api`);
+    console.log(`🔌 Socket.IO: Enabled (ws://localhost:${PORT})`);
+    console.log(`💳 Paystack: ${config.paystack.secretKey ? '✅ Configured' : '❌ Not configured (add PAYSTACK_SECRET_KEY to .env)'}`);
+    console.log(`☁️ Cloudinary: ${config.cloudinary.cloudName ? '✅ Configured' : '❌ Not configured'}`);
+    // Test Supabase connection
+    if (isSupabaseConfigured()) {
+        console.log(`🗄️ Supabase: ✅ Configured`);
+        const connected = await testConnection();
+        console.log(`   Database: ${connected ? '✅ Connected' : '❌ Connection failed'}`);
+    }
+    else {
+        console.log(`🗄️ Supabase: ❌ Not configured (add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env)`);
+    }
+    // Email & OAuth status
+    console.log(`📧 Brevo Email: ${isEmailServiceConfigured() ? '✅ Configured' : '❌ Not configured (add BREVO_API_KEY to .env)'}`);
+    console.log(`🔐 Google OAuth: ${config.google.clientId ? '✅ Configured' : '❌ Not configured (add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env)'}`);
+});
+export { io };
+export default app;
 //# sourceMappingURL=index.js.map

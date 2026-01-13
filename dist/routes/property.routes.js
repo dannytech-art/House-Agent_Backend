@@ -328,4 +328,112 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
 export default router;
+featured: featured || false,
+    status;
+'available',
+;
+;
+// Update agent's total listings
+if (agent.role === 'agent') {
+    await userModel.update(agent.id, {
+        totalListings: (agent.totalListings || 0) + 1,
+    });
+}
+// Send notification to agent that property was listed
+await notifyPropertyListed({
+    agentId: req.userId,
+    propertyId: newProperty.id,
+    propertyTitle: newProperty.title,
+});
+res.status(201).json({
+    success: true,
+    data: newProperty,
+    message: 'Property listed successfully! Clients can now see and express interest in your listing.',
+});
+try { }
+catch (error) {
+    console.error('Create property error:', error);
+    res.status(500).json({
+        success: false,
+        error: 'Failed to create property',
+    });
+}
+;
+// Update property
+router.put('/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+        const property = await propertyModel.findById(id);
+        if (!property) {
+            return res.status(404).json({
+                success: false,
+                error: 'Property not found',
+            });
+        }
+        // Only allow property owner or admin to update
+        if (property.agentId !== req.userId && req.userRole !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized to update this property',
+            });
+        }
+        // Prevent updating protected fields
+        delete updates.id;
+        delete updates.agentId;
+        delete updates.createdAt;
+        const updatedProperty = await propertyModel.update(id, updates);
+        res.json({
+            success: true,
+            data: updatedProperty,
+        });
+    }
+    catch (error) {
+        console.error('Update property error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update property',
+        });
+    }
+});
+// Delete property
+router.delete('/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const property = await propertyModel.findById(id);
+        if (!property) {
+            return res.status(404).json({
+                success: false,
+                error: 'Property not found',
+            });
+        }
+        // Only allow property owner or admin to delete
+        if (property.agentId !== req.userId && req.userRole !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized to delete this property',
+            });
+        }
+        await propertyModel.delete(id);
+        // Update agent's total listings
+        const agent = await userModel.findById(property.agentId);
+        if (agent && agent.role === 'agent') {
+            await userModel.update(agent.id, {
+                totalListings: Math.max(0, (agent.totalListings || 1) - 1),
+            });
+        }
+        res.json({
+            success: true,
+            message: 'Property deleted successfully',
+        });
+    }
+    catch (error) {
+        console.error('Delete property error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete property',
+        });
+    }
+});
+export default router;
 //# sourceMappingURL=property.routes.js.map

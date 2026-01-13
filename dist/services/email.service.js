@@ -1,8 +1,14 @@
 import * as brevo from '@getbrevo/brevo';
 import { config } from '../config/index.js';
-// Initialize Brevo API
-const apiInstance = new brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, config.brevo.apiKey);
+// Initialize Brevo API instance
+let apiInstance = null;
+const getApiInstance = () => {
+    if (!apiInstance && config.brevo.apiKey) {
+        apiInstance = new brevo.TransactionalEmailsApi();
+        apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, config.brevo.apiKey);
+    }
+    return apiInstance;
+};
 // Email templates
 const getOTPEmailTemplate = (otp, name) => `
 <!DOCTYPE html>
@@ -238,8 +244,10 @@ const getPasswordResetEmailTemplate = (otp, name) => `
 // Send email function
 export const sendEmail = async (to, subject, htmlContent) => {
     try {
-        if (!config.brevo.apiKey) {
-            console.warn('Brevo API key not configured. Skipping email.');
+        const api = getApiInstance();
+        if (!api || !config.brevo.apiKey) {
+            console.warn('⚠️ Brevo API key not configured. Skipping email.');
+            console.log(`📧 Would have sent email to ${to}: ${subject}`);
             return false;
         }
         const sendSmtpEmail = new brevo.SendSmtpEmail();
@@ -250,12 +258,15 @@ export const sendEmail = async (to, subject, htmlContent) => {
         };
         sendSmtpEmail.subject = subject;
         sendSmtpEmail.htmlContent = htmlContent;
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        await api.sendTransacEmail(sendSmtpEmail);
         console.log(`✉️ Email sent successfully to ${to}`);
         return true;
     }
     catch (error) {
-        console.error('Failed to send email:', error);
+        console.error('Failed to send email:', error?.message || error);
+        if (error?.response?.body) {
+            console.error('Brevo API error:', error.response.body);
+        }
         return false;
     }
 };
@@ -281,7 +292,12 @@ export const sendPasswordResetEmail = async (email, otp, name) => {
 export const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
+// Check if email service is configured
 export const isEmailServiceConfigured = () => {
-    return !!config.brevo.apiKey;
+    const configured = !!config.brevo.apiKey;
+    if (!configured) {
+        console.warn('⚠️ Email service not configured. Set BREVO_API_KEY environment variable.');
+    }
+    return configured;
 };
 //# sourceMappingURL=email.service.js.map

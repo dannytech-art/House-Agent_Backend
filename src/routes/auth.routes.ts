@@ -202,10 +202,14 @@ router.post('/register', async (req: Request, res: Response) => {
     await otpModel.createOTP(email, otp, 'email_verification', newUser.id);
 
     // Send verification email
-    if (isEmailServiceConfigured()) {
-      await sendOTPEmail(email, otp, name);
+    const emailConfigured = isEmailServiceConfigured();
+    console.log(`📧 Email service configured: ${emailConfigured}`);
+    
+    if (emailConfigured) {
+      const emailSent = await sendOTPEmail(email, otp, name);
+      console.log(`📧 OTP email sent to ${email}: ${emailSent ? 'SUCCESS' : 'FAILED'}`);
     } else {
-      console.log(`📧 OTP for ${email}: ${otp} (Email service not configured)`);
+      console.log(`📧 OTP for ${email}: ${otp} (Email service not configured - missing BREVO_API_KEY)`);
     }
 
     // Remove sensitive data from response
@@ -427,7 +431,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Check if email is verified
-    if (!(user as any).emailVerified) {
+    if (!(user as any).emailVerified && (user as any).email_verified !== true) {
       // Send new OTP
       const otp = generateOTP();
       await otpModel.createOTP(email, otp, 'email_verification', user.id);
@@ -678,37 +682,6 @@ router.post('/password-reset/complete', async (req: Request, res: Response) => {
       error: 'Failed to reset password',
     });
   }
-});
-
-// Legacy password reset endpoints (kept for backwards compatibility)
-router.post('/password-reset', async (req: Request, res: Response) => {
-  // Redirect to new endpoint
-  req.body.email = req.body.email;
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({
-      success: false,
-      error: 'Email is required',
-    });
-  }
-
-  // Forward to new endpoint
-  return res.redirect(307, '/api/auth/password-reset/request');
-});
-
-router.patch('/password-reset', async (req: Request, res: Response) => {
-  const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    return res.status(400).json({
-      success: false,
-      error: 'Token and new password are required',
-    });
-  }
-
-  req.body.resetToken = token;
-  return res.redirect(307, '/api/auth/password-reset/complete');
 });
 
 // ============================================

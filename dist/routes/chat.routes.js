@@ -245,4 +245,40 @@ router.post('/', authenticate, async (req, res) => {
     }
 });
 export default router;
+success: true,
+    data;
+existingSession,
+;
+;
+const newSession = await chatSessionModel.create({
+    participantIds: [req.userId, participantId],
+    propertyId,
+    interestId,
+});
+// Send initial message if provided
+if (initialMessage) {
+    const sender = await userModel.findById(req.userId);
+    await chatMessageModel.create({
+        sessionId: newSession.id,
+        senderId: req.userId,
+        senderName: sender?.name || 'Unknown',
+        senderAvatar: sender?.avatar,
+        message: initialMessage,
+        type: 'text',
+    });
+}
+res.status(201).json({
+    success: true,
+    data: newSession,
+});
+try { }
+catch (error) {
+    console.error('Create chat error:', error);
+    res.status(500).json({
+        success: false,
+        error: 'Failed to create chat session',
+    });
+}
+;
+export default router;
 //# sourceMappingURL=chat.routes.js.map

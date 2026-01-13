@@ -659,4 +659,405 @@ router.get('/status', async (req, res) => {
     }
 });
 export default router;
+// Verify OTP
+const result = await otpModel.verifyOTP(email, otp, type);
+if (!result.success) {
+    return res.status(400).json({
+        success: false,
+        error: result.message,
+    });
+}
+// Get user
+const user = await userModel.findByEmail(email);
+if (!user) {
+    return res.status(404).json({
+        success: false,
+        error: 'User not found',
+    });
+}
+// For email verification, update user and create session
+if (type === 'email_verification') {
+    await userModel.update(user.id, { email_verified: true });
+    // Send welcome email
+    if (isEmailServiceConfigured()) {
+        await sendWelcomeEmail(email, user.name, user.role);
+    }
+    // Create auth session
+    const { token, expiresAt } = await createAuthSession(user);
+    // Remove sensitive data
+    const { passwordHash: _, password_hash: __, ...userResponse } = user;
+    userResponse.emailVerified = true;
+    return res.json({
+        success: true,
+        message: 'Email verified successfully!',
+        data: {
+            user: userResponse,
+            token,
+            expiresAt,
+        },
+    });
+}
+// For password reset, return success with reset token
+if (type === 'password_reset') {
+    const resetToken = jwt.sign({ userId: user.id, type: 'password_reset' }, config.jwt.secret, { expiresIn: '15m' });
+    return res.json({
+        success: true,
+        message: 'OTP verified. You can now reset your password.',
+        data: {
+            resetToken,
+        },
+    });
+}
+res.json({
+    success: true,
+    message: 'OTP verified successfully',
+});
+try { }
+catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({
+        success: false,
+        error: 'Failed to verify OTP',
+    });
+}
+;
+// ============================================
+// LOGIN
+// ============================================
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email and password are required',
+            });
+        }
+        const user = await userModel.findByEmail(email);
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid email or password',
+            });
+        }
+        // Check if user uses OAuth only
+        if (user.authProvider === 'google' && !user.passwordHash && !user.password_hash) {
+            return res.status(401).json({
+                success: false,
+                error: 'This account uses Google sign-in. Please use "Sign in with Google".',
+            });
+        }
+        if (user.active === false) {
+            return res.status(401).json({
+                success: false,
+                error: 'Account is deactivated',
+            });
+        }
+        const isValidPassword = await bcrypt.compare(password, user.passwordHash || user.password_hash);
+        if (!isValidPassword) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid email or password',
+            });
+        }
+        // Check if email is verified
+        if (!user.emailVerified) {
+            // Send new OTP
+            const otp = generateOTP();
+            await otpModel.createOTP(email, otp, 'email_verification', user.id);
+            if (isEmailServiceConfigured()) {
+                await sendOTPEmail(email, otp, user.name);
+            }
+            else {
+                console.log(`📧 OTP for ${email}: ${otp} (Email service not configured)`);
+            }
+            return res.status(403).json({
+                success: false,
+                error: 'Please verify your email first. A new verification code has been sent.',
+                requiresVerification: true,
+                email: user.email,
+            });
+        }
+        // Create session
+        const { token, expiresAt } = await createAuthSession(user);
+        // Remove password hash from response
+        const { passwordHash: _, password_hash: __, ...userResponse } = user;
+        res.json({
+            success: true,
+            data: {
+                user: userResponse,
+                token,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to login',
+        });
+    }
+});
+// ============================================
+// GOOGLE OAUTH ROUTES
+// ============================================
+// Initiate Google OAuth - role passed as query param
+router.get('/google', (req, res, next) => {
+    const role = req.query.role || 'seeker';
+    // Validate role
+    if (!['seeker', 'agent'].includes(role)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Role must be either "seeker" or "agent"',
+        });
+    }
+    if (!config.google.clientId || !config.google.clientSecret) {
+        return res.status(501).json({
+            success: false,
+            error: 'Google OAuth is not configured',
+        });
+    }
+    // Encode role in state parameter
+    const state = Buffer.from(JSON.stringify({ role })).toString('base64');
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        state,
+    })(req, res, next);
+});
+// Google OAuth callback
+router.get('/google/callback', passport.authenticate('google', {
+    session: false,
+    failureRedirect: `${config.frontendUrl}/auth/error?error=google_auth_failed`,
+}), async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.redirect(`${config.frontendUrl}/auth/error?error=no_user`);
+        }
+        // Create auth session
+        const { token } = await createAuthSession(user);
+        // Redirect to frontend with token
+        const redirectUrl = new URL(`${config.frontendUrl}/auth/callback`);
+        redirectUrl.searchParams.set('token', token);
+        redirectUrl.searchParams.set('role', user.role);
+        res.redirect(redirectUrl.toString());
+    }
+    catch (error) {
+        console.error('Google callback error:', error);
+        res.redirect(`${config.frontendUrl}/auth/error?error=callback_failed`);
+    }
+});
+// ============================================
+// GET CURRENT USER
+// ============================================
+router.get('/me', authenticate, async (req, res) => {
+    try {
+        const user = await userModel.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found',
+            });
+        }
+        const { passwordHash: _, password_hash: __, ...userResponse } = user;
+        res.json({
+            success: true,
+            data: userResponse,
+        });
+    }
+    catch (error) {
+        console.error('Get me error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get user',
+        });
+    }
+});
+// ============================================
+// LOGOUT
+// ============================================
+router.post('/logout', authenticate, async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1];
+        if (token) {
+            const session = await sessionModel.findByToken(token);
+            if (session) {
+                await sessionModel.delete(session.id);
+            }
+        }
+        res.json({
+            success: true,
+            message: 'Logged out successfully',
+        });
+    }
+    catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to logout',
+        });
+    }
+});
+// ============================================
+// PASSWORD RESET
+// ============================================
+// Request password reset (sends OTP)
+router.post('/password-reset/request', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email is required',
+            });
+        }
+        const user = await userModel.findByEmail(email);
+        // Always return success to prevent email enumeration
+        if (!user) {
+            return res.json({
+                success: true,
+                message: 'If an account exists with this email, a reset code has been sent.',
+            });
+        }
+        // Generate and send OTP
+        const otp = generateOTP();
+        await otpModel.createOTP(email, otp, 'password_reset', user.id);
+        if (isEmailServiceConfigured()) {
+            await sendPasswordResetEmail(email, otp, user.name);
+        }
+        else {
+            console.log(`📧 Password reset OTP for ${email}: ${otp} (Email service not configured)`);
+        }
+        res.json({
+            success: true,
+            message: 'If an account exists with this email, a reset code has been sent.',
+        });
+    }
+    catch (error) {
+        console.error('Password reset request error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to process password reset request',
+        });
+    }
+});
+// Complete password reset (after OTP verified)
+router.post('/password-reset/complete', async (req, res) => {
+    try {
+        const { resetToken, newPassword } = req.body;
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                error: 'Reset token and new password are required',
+            });
+        }
+        // Verify reset token
+        let decoded;
+        try {
+            decoded = jwt.verify(resetToken, config.jwt.secret);
+            if (decoded.type !== 'password_reset') {
+                throw new Error('Invalid token type');
+            }
+        }
+        catch (error) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid or expired reset token',
+            });
+        }
+        // Update password
+        const passwordHash = await bcrypt.hash(newPassword, 12);
+        await userModel.update(decoded.userId, { password_hash: passwordHash });
+        res.json({
+            success: true,
+            message: 'Password has been reset successfully. You can now login with your new password.',
+        });
+    }
+    catch (error) {
+        console.error('Password reset complete error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to reset password',
+        });
+    }
+});
+// Legacy password reset endpoints (kept for backwards compatibility)
+router.post('/password-reset', async (req, res) => {
+    // Redirect to new endpoint
+    req.body.email = req.body.email;
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({
+            success: false,
+            error: 'Email is required',
+        });
+    }
+    // Forward to new endpoint
+    return res.redirect(307, '/api/auth/password-reset/request');
+});
+router.patch('/password-reset', async (req, res) => {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+        return res.status(400).json({
+            success: false,
+            error: 'Token and new password are required',
+        });
+    }
+    req.body.resetToken = token;
+    return res.redirect(307, '/api/auth/password-reset/complete');
+});
+// ============================================
+// CHECK AUTH STATUS
+// ============================================
+router.get('/status', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.json({
+                success: true,
+                data: {
+                    authenticated: false,
+                },
+            });
+        }
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, config.jwt.secret);
+            const user = await userModel.findById(decoded.userId);
+            if (!user) {
+                return res.json({
+                    success: true,
+                    data: {
+                        authenticated: false,
+                    },
+                });
+            }
+            const { passwordHash: _, password_hash: __, ...userResponse } = user;
+            return res.json({
+                success: true,
+                data: {
+                    authenticated: true,
+                    user: userResponse,
+                },
+            });
+        }
+        catch {
+            return res.json({
+                success: true,
+                data: {
+                    authenticated: false,
+                },
+            });
+        }
+    }
+    catch (error) {
+        console.error('Auth status error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to check auth status',
+        });
+    }
+});
+export default router;
 //# sourceMappingURL=auth.routes.js.map

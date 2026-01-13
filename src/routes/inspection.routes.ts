@@ -67,11 +67,22 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Debug: Log both IDs to check mismatch
+    console.log('🔍 Inspection auth check:', {
+      interestSeekerId: interest.seekerId,
+      requestUserId: req.userId,
+      match: interest.seekerId === req.userId
+    });
+
     // Verify user is the seeker who expressed interest
     if (interest.seekerId !== req.userId) {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to schedule inspection for this interest',
+        debug: {
+          interestSeekerId: interest.seekerId,
+          yourUserId: req.userId
+        }
       });
     }
 

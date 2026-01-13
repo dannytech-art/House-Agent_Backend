@@ -27,7 +27,11 @@ function toCamelCase(data) {
         tier: data.tier,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
-        active: true
+        active: true,
+        // OAuth fields
+        googleId: data.google_id,
+        emailVerified: data.email_verified,
+        authProvider: data.auth_provider,
     };
 }
 // Helper to convert camelCase to snake_case for database
@@ -75,20 +79,53 @@ function toSnakeCase(data) {
         result.rating = data.rating;
     if (data.tier !== undefined)
         result.tier = data.tier;
+    // OAuth fields
+    if (data.googleId !== undefined)
+        result.google_id = data.googleId;
+    if (data.google_id !== undefined)
+        result.google_id = data.google_id;
+    if (data.emailVerified !== undefined)
+        result.email_verified = data.emailVerified;
+    if (data.email_verified !== undefined)
+        result.email_verified = data.email_verified;
+    if (data.authProvider !== undefined)
+        result.auth_provider = data.authProvider;
+    if (data.auth_provider !== undefined)
+        result.auth_provider = data.auth_provider;
     return result;
 }
 class UserModel {
     async create(userData) {
         const dbData = toSnakeCase(userData);
-        const result = await SupabaseDB.createUser({
+        // Build the user data object with all fields
+        const createData = {
             email: dbData.email,
-            password_hash: dbData.password_hash,
+            password_hash: dbData.password_hash || '',
             name: dbData.name,
-            phone: dbData.phone,
+            phone: dbData.phone || '',
             role: dbData.role,
             agent_type: dbData.agent_type,
-            avatar: dbData.avatar
-        });
+            avatar: dbData.avatar,
+        };
+        // Add OAuth fields if present
+        if (dbData.google_id)
+            createData.google_id = dbData.google_id;
+        if (dbData.email_verified !== undefined)
+            createData.email_verified = dbData.email_verified;
+        if (dbData.auth_provider)
+            createData.auth_provider = dbData.auth_provider;
+        // Add agent-specific fields
+        if (dbData.verified !== undefined)
+            createData.verified = dbData.verified;
+        if (dbData.level !== undefined)
+            createData.level = dbData.level;
+        if (dbData.xp !== undefined)
+            createData.xp = dbData.xp;
+        if (dbData.credits !== undefined)
+            createData.credits = dbData.credits;
+        if (dbData.tier !== undefined)
+            createData.tier = dbData.tier;
+        const result = await SupabaseDB.createUser(createData);
         return toCamelCase(result);
     }
     async findById(id) {
@@ -98,6 +135,18 @@ class UserModel {
     async findByEmail(email) {
         const result = await SupabaseDB.findUserByEmail(email);
         return result ? toCamelCase(result) : null;
+    }
+    async findByGoogleId(googleId) {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('google_id', googleId)
+            .single();
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error finding user by Google ID:', error);
+            return null;
+        }
+        return data ? toCamelCase(data) : null;
     }
     async update(id, updates) {
         const dbData = toSnakeCase(updates);

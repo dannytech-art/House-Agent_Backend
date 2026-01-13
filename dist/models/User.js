@@ -13,9 +13,6 @@ function toCamelCase(data) {
         avatar: data.avatar,
         passwordHash: data.password_hash,
         verified: data.verified,
-        emailVerified: data.email_verified || false,
-        googleId: data.google_id,
-        authProvider: data.auth_provider || 'email',
         agentType: data.agent_type,
         kycStatus: data.kyc_status,
         level: data.level,
@@ -52,18 +49,6 @@ function toSnakeCase(data) {
         result.password_hash = data.password_hash;
     if (data.verified !== undefined)
         result.verified = data.verified;
-    if (data.emailVerified !== undefined)
-        result.email_verified = data.emailVerified;
-    if (data.email_verified !== undefined)
-        result.email_verified = data.email_verified;
-    if (data.googleId !== undefined)
-        result.google_id = data.googleId;
-    if (data.google_id !== undefined)
-        result.google_id = data.google_id;
-    if (data.authProvider !== undefined)
-        result.auth_provider = data.authProvider;
-    if (data.auth_provider !== undefined)
-        result.auth_provider = data.auth_provider;
     if (data.agentType !== undefined)
         result.agent_type = data.agentType;
     if (data.agent_type !== undefined)
@@ -97,20 +82,12 @@ class UserModel {
         const dbData = toSnakeCase(userData);
         const result = await SupabaseDB.createUser({
             email: dbData.email,
-            password_hash: dbData.password_hash || '',
+            password_hash: dbData.password_hash,
             name: dbData.name,
-            phone: dbData.phone || '',
+            phone: dbData.phone,
             role: dbData.role,
             agent_type: dbData.agent_type,
-            avatar: dbData.avatar,
-            google_id: dbData.google_id,
-            email_verified: dbData.email_verified,
-            auth_provider: dbData.auth_provider,
-            verified: dbData.verified,
-            level: dbData.level,
-            xp: dbData.xp,
-            credits: dbData.credits,
-            tier: dbData.tier
+            avatar: dbData.avatar
         });
         return toCamelCase(result);
     }
@@ -161,16 +138,6 @@ class UserModel {
         if (error)
             throw error;
         return (data || []).map(toCamelCase);
-    }
-    async findByGoogleId(googleId) {
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('google_id', googleId)
-            .single();
-        if (error && error.code !== 'PGRST116')
-            throw error;
-        return data ? toCamelCase(data) : null;
     }
     // Legacy sync methods for backwards compatibility - now async
     findOne(predicate) {

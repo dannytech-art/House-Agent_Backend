@@ -2,39 +2,20 @@
 import { SupabaseDB, supabase } from '../services/supabase.service.js';
 import { User, Agent } from '../types/index.js';
 
-export interface UserDocument {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: 'seeker' | 'agent' | 'admin';
-  avatar?: string;
+export interface UserDocument extends Omit<User, 'active'> {
   password_hash: string;
-  passwordHash: string;
-  emailVerified?: boolean;
-  googleId?: string;
-  authProvider?: string;
+  passwordHash?: string;
   created_at: string;
   updated_at: string;
-  createdAt: string;
-  updatedAt: string;
   active: boolean;
 }
 
-export interface AgentDocument extends UserDocument {
-  agentType: 'direct' | 'semi-direct';
-  verified: boolean;
-  kycStatus: 'unverified' | 'pending' | 'verified' | 'rejected';
-  level: number;
-  xp: number;
-  credits: number;
-  walletBalance: number;
-  streak: number;
-  totalListings: number;
-  totalInterests: number;
-  responseTime: number;
-  rating: number;
-  tier: string;
+export interface AgentDocument extends Omit<Agent, 'active'> {
+  password_hash: string;
+  passwordHash?: string;
+  created_at: string;
+  updated_at: string;
+  active: boolean;
 }
 
 // Helper to convert database snake_case to camelCase
@@ -50,9 +31,6 @@ function toCamelCase(data: any): any {
     avatar: data.avatar,
     passwordHash: data.password_hash,
     verified: data.verified,
-    emailVerified: data.email_verified || false,
-    googleId: data.google_id,
-    authProvider: data.auth_provider || 'email',
     agentType: data.agent_type,
     kycStatus: data.kyc_status,
     level: data.level,
@@ -83,12 +61,6 @@ function toSnakeCase(data: any): any {
   if (data.passwordHash !== undefined) result.password_hash = data.passwordHash;
   if (data.password_hash !== undefined) result.password_hash = data.password_hash;
   if (data.verified !== undefined) result.verified = data.verified;
-  if (data.emailVerified !== undefined) result.email_verified = data.emailVerified;
-  if (data.email_verified !== undefined) result.email_verified = data.email_verified;
-  if (data.googleId !== undefined) result.google_id = data.googleId;
-  if (data.google_id !== undefined) result.google_id = data.google_id;
-  if (data.authProvider !== undefined) result.auth_provider = data.authProvider;
-  if (data.auth_provider !== undefined) result.auth_provider = data.auth_provider;
   if (data.agentType !== undefined) result.agent_type = data.agentType;
   if (data.agent_type !== undefined) result.agent_type = data.agent_type;
   if (data.kycStatus !== undefined) result.kyc_status = data.kycStatus;
@@ -111,20 +83,12 @@ class UserModel {
     const dbData = toSnakeCase(userData);
     const result = await SupabaseDB.createUser({
       email: dbData.email,
-      password_hash: dbData.password_hash || '',
+      password_hash: dbData.password_hash,
       name: dbData.name,
-      phone: dbData.phone || '',
+      phone: dbData.phone,
       role: dbData.role,
       agent_type: dbData.agent_type,
-      avatar: dbData.avatar,
-      google_id: dbData.google_id,
-      email_verified: dbData.email_verified,
-      auth_provider: dbData.auth_provider,
-      verified: dbData.verified,
-      level: dbData.level,
-      xp: dbData.xp,
-      credits: dbData.credits,
-      tier: dbData.tier
+      avatar: dbData.avatar
     });
     return toCamelCase(result);
   }
@@ -183,17 +147,6 @@ class UserModel {
     
     if (error) throw error;
     return (data || []).map(toCamelCase);
-  }
-
-  async findByGoogleId(googleId: string): Promise<UserDocument | AgentDocument | null> {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('google_id', googleId)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') throw error;
-    return data ? toCamelCase(data) : null;
   }
 
   // Legacy sync methods for backwards compatibility - now async

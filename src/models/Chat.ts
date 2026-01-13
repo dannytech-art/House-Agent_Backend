@@ -265,13 +265,6 @@ export const chatSessionModel = new ChatSessionModel();
 export const chatMessageModel = new ChatMessageModel();
 export default { chatSessionModel, chatMessageModel };
 
-    type: data.type || 'text',
-    metadata: data.metadata,
-    timestamp: data.timestamp,
-    read: data.read || false
-  };
-}
-
 // Helper to convert camelCase to snake_case for chat session
 function sessionToSnakeCase(data: any): any {
   const result: any = {};

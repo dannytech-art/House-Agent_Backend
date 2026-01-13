@@ -1,13 +1,11 @@
 import express, { Request, Response } from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
-import passport from 'passport';
 import { config } from './config/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { initializeSocketServer } from './services/socket.service.js';
 import { isSupabaseConfigured, testConnection } from './services/supabase.service.js';
-import { isEmailServiceConfigured } from './services/email.service.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -52,9 +50,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Request logging
 app.use(requestLogger);
-
-// Initialize Passport for Google OAuth
-app.use(passport.initialize());
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -116,50 +111,6 @@ httpServer.listen(PORT, async () => {
   } else {
     console.log(`🗄️ Supabase: ❌ Not configured (add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env)`);
   }
-  
-  // Email & OAuth status
-  console.log(`📧 Brevo Email: ${isEmailServiceConfigured() ? '✅ Configured' : '❌ Not configured (add BREVO_API_KEY to .env)'}`);
-  console.log(`🔐 Google OAuth: ${config.google.clientId ? '✅ Configured' : '❌ Not configured (add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env)'}`);
-});
-
-export { io };
-export default app;
-
-
-// 404 handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: 'Endpoint not found',
-  });
-});
-
-// Global error handler
-app.use(errorHandler);
-
-// Start server
-const PORT = config.port;
-httpServer.listen(PORT, async () => {
-  console.log(`🚀 Vilanow API Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${config.env}`);
-  console.log(`🌐 CORS: Universal (all origins allowed)`);
-  console.log(`📝 API Base URL: http://localhost:${PORT}/api`);
-  console.log(`🔌 Socket.IO: Enabled (ws://localhost:${PORT})`);
-  console.log(`💳 Paystack: ${config.paystack.secretKey ? '✅ Configured' : '❌ Not configured (add PAYSTACK_SECRET_KEY to .env)'}`);
-  console.log(`☁️ Cloudinary: ${config.cloudinary.cloudName ? '✅ Configured' : '❌ Not configured'}`);
-  
-  // Test Supabase connection
-  if (isSupabaseConfigured()) {
-    console.log(`🗄️ Supabase: ✅ Configured`);
-    const connected = await testConnection();
-    console.log(`   Database: ${connected ? '✅ Connected' : '❌ Connection failed'}`);
-  } else {
-    console.log(`🗄️ Supabase: ❌ Not configured (add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env)`);
-  }
-  
-  // Email & OAuth status
-  console.log(`📧 Brevo Email: ${isEmailServiceConfigured() ? '✅ Configured' : '❌ Not configured (add BREVO_API_KEY to .env)'}`);
-  console.log(`🔐 Google OAuth: ${config.google.clientId ? '✅ Configured' : '❌ Not configured (add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env)'}`);
 });
 
 export { io };

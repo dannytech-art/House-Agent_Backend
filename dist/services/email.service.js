@@ -1,14 +1,11 @@
-import * as brevo from '@getbrevo/brevo';
+// @ts-nocheck
+import Brevo from 'sib-api-v3-sdk';
 import { config } from '../config/index.js';
-// Initialize Brevo API instance
-let apiInstance = null;
-const getApiInstance = () => {
-    if (!apiInstance && config.brevo.apiKey) {
-        apiInstance = new brevo.TransactionalEmailsApi();
-        apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, config.brevo.apiKey);
-    }
-    return apiInstance;
-};
+// Initialize Brevo API
+const defaultClient = Brevo.ApiClient.instance;
+const apiKey = defaultClient.authentications['api-key'];
+apiKey.apiKey = config.brevo.apiKey;
+const apiInstance = new Brevo.TransactionalEmailsApi();
 // Email templates
 const getOTPEmailTemplate = (otp, name) => `
 <!DOCTYPE html>
@@ -241,31 +238,27 @@ const getPasswordResetEmailTemplate = (otp, name) => `
 </body>
 </html>
 `;
-// Send email function
-export const sendEmail = async (to, subject, htmlContent) => {
+// Send email function using sib-api-v3-sdk
+export const sendEmail = async (toEmail, subject, htmlContent, senderName = config.brevo.senderName, senderEmail = config.brevo.senderEmail) => {
     try {
-        const api = getApiInstance();
-        if (!api || !config.brevo.apiKey) {
+        if (!config.brevo.apiKey) {
             console.warn('⚠️ Brevo API key not configured. Skipping email.');
-            console.log(`📧 Would have sent email to ${to}: ${subject}`);
+            console.log(`📧 Would have sent email to ${toEmail}: ${subject}`);
             return false;
         }
-        const sendSmtpEmail = new brevo.SendSmtpEmail();
-        sendSmtpEmail.to = [{ email: to }];
-        sendSmtpEmail.sender = {
-            email: config.brevo.senderEmail,
-            name: config.brevo.senderName,
-        };
+        const sendSmtpEmail = new Brevo.SendSmtpEmail();
         sendSmtpEmail.subject = subject;
+        sendSmtpEmail.to = [{ email: toEmail }];
+        sendSmtpEmail.sender = { name: senderName, email: senderEmail };
         sendSmtpEmail.htmlContent = htmlContent;
-        await api.sendTransacEmail(sendSmtpEmail);
-        console.log(`✉️ Email sent successfully to ${to}`);
+        const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log(`✅ Email sent successfully to ${toEmail}:`, response?.messageId || 'sent');
         return true;
     }
     catch (error) {
-        console.error('Failed to send email:', error?.message || error);
+        console.error('❌ Error sending email:', error?.message || error);
         if (error?.response?.body) {
-            console.error('Brevo API error:', error.response.body);
+            console.error('Brevo API error details:', error.response.body);
         }
         return false;
     }

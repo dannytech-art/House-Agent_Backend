@@ -4,6 +4,8 @@ import { userModel } from '../models/User.js';
 import { interestModel } from '../models/Interest.js';
 import { authenticate, optionalAuth, requireRole, AuthRequest } from '../middleware/auth.js';
 import { notifyPropertyListed } from '../services/notification.service.js';
+import { upload, handleUploadError } from '../middleware/upload.js';
+import { uploadMultipleToCloudinary } from '../services/upload.service.js';
 
 const router = Router();
 
@@ -174,162 +176,266 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Create property (agents only)
-router.post('/', authenticate, requireRole('agent', 'admin'), async (req: AuthRequest, res: Response) => {
-  try {
-    const { 
-      title, 
-      type, 
-      price, 
-      location, 
-      area, 
-      bedrooms, 
-      bathrooms, 
-      images, 
-      videos, 
-      amenities, 
-      description, 
-      featured,
-      agentType: requestAgentType
-    } = req.body;
+// Create property (agents only) - NOW WITH FILE UPLOAD SUPPORT
+router.post(
+  '/',
+  authenticate,
+  requireRole('agent', 'admin'),
+  upload.array('files', 10), // Accept up to 10 files
+  handleUploadError,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { 
+        title, 
+        type, 
+        price, 
+        location, 
+        area, 
+        bedrooms, 
+        bathrooms, 
+        images: existingImages, // URLs passed directly
+        videos: existingVideos,
+        amenities, 
+        description, 
+        featured,
+        agentType: requestAgentType
+      } = req.body;
 
-    // Debug: Log what images are being received
-    console.log('📸 Creating property with images:', JSON.stringify(images));
-    console.log('📹 Creating property with videos:', JSON.stringify(videos));
+      // Handle uploaded files
+      const files = req.files as Express.Multer.File[];
+      let uploadedImages: string[] = [];
+      let uploadedVideos: string[] = [];
 
-    // Validate required fields
-    if (!title || !type || !price || !location) {
-      return res.status(400).json({
+      if (files && files.length > 0) {
+        console.log(`📸 Uploading ${files.length} files to Cloudinary...`);
+        
+        const uploadResults = await uploadMultipleToCloudinary(files, 'vilanow/properties');
+        
+        uploadResults.forEach((result, index) => {
+          if (result.success && result.url) {
+            const file = files[index];
+            if (file.mimetype.startsWith('video/')) {
+              uploadedVideos.push(result.url);
+            } else {
+              uploadedImages.push(result.url);
+            }
+          }
+        });
+        
+        console.log(`✅ Uploaded ${uploadedImages.length} images and ${uploadedVideos.length} videos`);
+      }
+
+      // Combine uploaded files with any URLs passed directly
+      const finalImages = [
+        ...uploadedImages,
+        ...(Array.isArray(existingImages) ? existingImages : existingImages ? [existingImages] : [])
+      ].filter(Boolean);
+      
+      const finalVideos = [
+        ...uploadedVideos,
+        ...(Array.isArray(existingVideos) ? existingVideos : existingVideos ? [existingVideos] : [])
+      ].filter(Boolean);
+
+      console.log('📸 Final images for property:', JSON.stringify(finalImages));
+      console.log('📹 Final videos for property:', JSON.stringify(finalVideos));
+
+      // Validate required fields
+      if (!title || !type || !price || !location) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: title, type, price, location',
+        });
+      }
+
+      // Validate property type
+      const validTypes = ['apartment', 'house', 'duplex', 'penthouse', 'studio', 'land'];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid property type. Must be one of: ${validTypes.join(', ')}`,
+        });
+      }
+
+      // Validate price
+      if (isNaN(Number(price)) || Number(price) <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Price must be a positive number',
+        });
+      }
+
+      const agent = await userModel.findById(req.userId!);
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          error: 'Agent not found',
+        });
+      }
+
+      // Validate amenities if provided
+      const validAmenities = ['Pool', 'Gym', '24/7 Security', 'Parking', 'Generator', 'BQ', 'Garden', 'Smart Home'];
+      let parsedAmenities = amenities;
+      
+      // Handle amenities as string (from form data) or array
+      if (typeof amenities === 'string') {
+        try {
+          parsedAmenities = JSON.parse(amenities);
+        } catch {
+          parsedAmenities = amenities.split(',').map((a: string) => a.trim());
+        }
+      }
+      
+      const sanitizedAmenities = Array.isArray(parsedAmenities)
+        ? parsedAmenities.filter((a: string) => validAmenities.includes(a))
+        : [];
+
+      // Determine agent type for this listing
+      const listingAgentType = requestAgentType === 'direct' || requestAgentType === 'semi-direct' 
+        ? requestAgentType 
+        : (agent as any).agentType || 'semi-direct';
+
+      const newProperty = await propertyModel.create({
+        title,
+        type,
+        price: Number(price),
+        location,
+        area: area || location,
+        bedrooms: bedrooms ? Number(bedrooms) : undefined,
+        bathrooms: bathrooms ? Number(bathrooms) : undefined,
+        images: finalImages,
+        videos: finalVideos,
+        amenities: sanitizedAmenities,
+        description: description || '',
+        agentId: req.userId!,
+        agentType: listingAgentType,
+        agentName: agent.name,
+        agentVerified: (agent as any).verified || false,
+        featured: featured === 'true' || featured === true,
+        status: 'available',
+      });
+
+      // Update agent's total listings
+      if (agent.role === 'agent') {
+        await userModel.update(agent.id, {
+          totalListings: ((agent as any).totalListings || 0) + 1,
+        });
+      }
+
+      // Send notification to agent that property was listed
+      await notifyPropertyListed({
+        agentId: req.userId!,
+        propertyId: newProperty.id,
+        propertyTitle: newProperty.title,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: newProperty,
+        message: 'Property listed successfully! Clients can now see and express interest in your listing.',
+      });
+    } catch (error) {
+      console.error('Create property error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Missing required fields: title, type, price, location',
+        error: 'Failed to create property',
       });
     }
-
-    // Validate property type
-    const validTypes = ['apartment', 'house', 'duplex', 'penthouse', 'studio', 'land'];
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid property type. Must be one of: ${validTypes.join(', ')}`,
-      });
-    }
-
-    // Validate price
-    if (isNaN(Number(price)) || Number(price) <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Price must be a positive number',
-      });
-    }
-
-    const agent = await userModel.findById(req.userId!);
-    if (!agent) {
-      return res.status(404).json({
-        success: false,
-        error: 'Agent not found',
-      });
-    }
-
-    // Validate amenities if provided
-    const validAmenities = ['Pool', 'Gym', '24/7 Security', 'Parking', 'Generator', 'BQ', 'Garden', 'Smart Home'];
-    const sanitizedAmenities = amenities 
-      ? amenities.filter((a: string) => validAmenities.includes(a))
-      : [];
-
-    // Determine agent type for this listing
-    const listingAgentType = requestAgentType === 'direct' || requestAgentType === 'semi-direct' 
-      ? requestAgentType 
-      : (agent as any).agentType || 'semi-direct';
-
-    const newProperty = await propertyModel.create({
-      title,
-      type,
-      price: Number(price),
-      location,
-      area: area || location,
-      bedrooms: bedrooms ? Number(bedrooms) : undefined,
-      bathrooms: bathrooms ? Number(bathrooms) : undefined,
-      images: images || [],
-      videos: videos || [],
-      amenities: sanitizedAmenities,
-      description: description || '',
-      agentId: req.userId!,
-      agentType: listingAgentType,
-      agentName: agent.name,
-      agentVerified: (agent as any).verified || false,
-      featured: featured || false,
-      status: 'available',
-    });
-
-    // Update agent's total listings
-    if (agent.role === 'agent') {
-      await userModel.update(agent.id, {
-        totalListings: ((agent as any).totalListings || 0) + 1,
-      });
-    }
-
-    // Send notification to agent that property was listed
-    await notifyPropertyListed({
-      agentId: req.userId!,
-      propertyId: newProperty.id,
-      propertyTitle: newProperty.title,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: newProperty,
-      message: 'Property listed successfully! Clients can now see and express interest in your listing.',
-    });
-  } catch (error) {
-    console.error('Create property error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create property',
-    });
   }
-});
+);
 
-// Update property
-router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+// Update property - NOW WITH FILE UPLOAD SUPPORT
+router.put(
+  '/:id',
+  authenticate,
+  upload.array('files', 10),
+  handleUploadError,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const updates = { ...req.body };
 
-    const property = await propertyModel.findById(id);
-    if (!property) {
-      return res.status(404).json({
+      const property = await propertyModel.findById(id);
+      if (!property) {
+        return res.status(404).json({
+          success: false,
+          error: 'Property not found',
+        });
+      }
+
+      // Only allow property owner or admin to update
+      if (property.agentId !== req.userId && req.userRole !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to update this property',
+        });
+      }
+
+      // Handle uploaded files
+      const files = req.files as Express.Multer.File[];
+      if (files && files.length > 0) {
+        console.log(`📸 Uploading ${files.length} files for property update...`);
+        
+        const uploadResults = await uploadMultipleToCloudinary(files, 'vilanow/properties');
+        
+        const newImages: string[] = [];
+        const newVideos: string[] = [];
+        
+        uploadResults.forEach((result, index) => {
+          if (result.success && result.url) {
+            const file = files[index];
+            if (file.mimetype.startsWith('video/')) {
+              newVideos.push(result.url);
+            } else {
+              newImages.push(result.url);
+            }
+          }
+        });
+
+        // Append new uploads to existing images/videos
+        if (newImages.length > 0) {
+          const existingImages = Array.isArray(updates.images) 
+            ? updates.images 
+            : (property.images || []);
+          updates.images = [...existingImages, ...newImages];
+        }
+        
+        if (newVideos.length > 0) {
+          const existingVideos = Array.isArray(updates.videos) 
+            ? updates.videos 
+            : (property.videos || []);
+          updates.videos = [...existingVideos, ...newVideos];
+        }
+      }
+
+      // Handle amenities as string or array
+      if (updates.amenities && typeof updates.amenities === 'string') {
+        try {
+          updates.amenities = JSON.parse(updates.amenities);
+        } catch {
+          updates.amenities = updates.amenities.split(',').map((a: string) => a.trim());
+        }
+      }
+
+      // Prevent updating protected fields
+      delete updates.id;
+      delete updates.agentId;
+      delete updates.createdAt;
+
+      const updatedProperty = await propertyModel.update(id, updates);
+
+      res.json({
+        success: true,
+        data: updatedProperty,
+      });
+    } catch (error) {
+      console.error('Update property error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Property not found',
+        error: 'Failed to update property',
       });
     }
-
-    // Only allow property owner or admin to update
-    if (property.agentId !== req.userId && req.userRole !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this property',
-      });
-    }
-
-    // Prevent updating protected fields
-    delete updates.id;
-    delete updates.agentId;
-    delete updates.createdAt;
-
-    const updatedProperty = await propertyModel.update(id, updates);
-
-    res.json({
-      success: true,
-      data: updatedProperty,
-    });
-  } catch (error) {
-    console.error('Update property error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update property',
-    });
   }
-});
+);
 
 // Delete property
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
